@@ -1,0 +1,21 @@
+{
+  "name": "humanenv-server",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "humanenv-shared": "file:../shared",
+    "express": "^4.21.0",
+    "ws": "^8.18.0",
+    "better-sqlite3": "^11.6.0",
+    "mongodb": "^6.11.0",
+    "ejs": "^3.1.10",
+    "basic-auth": "^2.0.1",
+    "tsx": "^4.19.0"
+  }
+}

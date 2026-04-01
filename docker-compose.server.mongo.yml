@@ -1,0 +1,41 @@
+# HumanEnv Server - MongoDB Override
+# Usage: docker-compose -f docker-compose.server.yml -f docker-compose.server.mongo.yml up -d
+
+services:
+  humanenv-server:
+    environment:
+      # Override MONGODB_URI when this file is included
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/humanenv}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - humanenv-network
+      - mongo-network
+
+  mongo:
+    image: mongo:7.0
+    container_name: humanenv-mongo
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_DATABASE=humanenv
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - mongo-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  mongo-data:
+    driver: local
+    name: humanenv-mongo-data
+
+networks:
+  mongo-network:
+    driver: bridge
+    name: humanenv-mongo-network

@@ -1,0 +1,24 @@
+{
+  "name": "humanenv",
+  "version": "0.1.0",
+  "description": "Securely inject environment variables into your app. Secrets for humans only.",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "humanenv": "./dist/cli.js"
+  },
+  "author": "arancibiajav@gmail.com",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:javimosch/humanenv.git"
+  },
+  "scripts": {
+    "build": "node build.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "ws": "^8.18.0"
+  },
+  "files": ["src/", "dist/"]
+}

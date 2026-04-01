@@ -1,0 +1,39 @@
+{
+  "name": "humanenv",
+  "version": "0.1.0",
+  "description": "Securely inject environment variables into your app. Secrets for humans only.",
+  "author": "arancibiajav@gmail.com",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:javimosch/humanenv.git"
+  },
+  "license": "MIT",
+  "private": true,
+  "workspaces": [
+    "packages/shared",
+    "packages/server",
+    "packages/client",
+    "packages/cli"
+  ],
+  "bin": {
+    "humanenv": "packages/client/dist/cli.js"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "server": "npm run dev --workspace=packages/server",
+    "cli": "node packages/cli/src/bin.js",
+    "test": "node --import tsx --test packages/*/tests/*.test.ts",
+    "test:shared": "node --import tsx --test packages/shared/tests/*.test.ts",
+    "test:server": "node --import tsx --test packages/server/tests/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/basic-auth": "^1.1.8",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/ejs": "^3.1.5",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.14.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0"
+  }
+}

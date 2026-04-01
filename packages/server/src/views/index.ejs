@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HumanEnv Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.23/dist/full.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    [v-cloak] { display: none }
+    .mono { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; }
+  </style>
+</head>
+<body class="min-h-screen bg-base-200">
+  <div id="app" v-cloak class="container mx-auto p-4">
+    
+    <!-- PK Setup -->
+    <template v-if="pkStatus === 'needs-pk'">
+      <div class="card bg-base-100 shadow-xl max-w-lg mx-auto mt-20">
+        <div class="card-body">
+          <h2 class="card-title text-2xl">Setup Private Key</h2>
+          <p class="text-base-content/70">This server needs a private key to encrypt/decrypt sensitive values. If lost, all data is unrecoverable.</p>
+
+          <div v-if="existing === 'first'" class="mt-4">
+            <p class="font-semibold mb-2">Generated 12-word recovery phrase:</p>
+            <textarea readonly :value="generatedMnemonic" class="textarea textarea-bordered w-full mono text-lg bg-warning/10 h-24"></textarea>
+            <div class="alert alert-warning mt-2">
+              <span>Save this phrase securely. It will not be stored. If lost, data cannot be recovered.</span>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="form-control">
+            <label class="label"><span class="label-text">Enter or confirm 12-word phrase</span></label>
+            <textarea v-model="submittedMnemonic" class="textarea textarea-bordered w-full mono" placeholder="word1 word2 word3..." rows="3"></textarea>
+          </div>
+
+          <p v-if="pkError" class="text-error mt-2 font-bold">{{ pkError }}</p>
+
+          <div class="card-actions justify-end mt-4">
+            <button @click="submitPk" class="btn btn-primary" :disabled="pkSubmitting">{{ pkSubmitting ? 'Verifying...' : 'Submit' }}</button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Main Dashboard -->
+    <template v-else>
+      <div class="navbar bg-base-100 shadow-lg mb-4 rounded-box">
+        <a class="btn btn-ghost text-xl">HumanEnv Admin</a>
+        <div class="flex-1"></div>
+        <div class="badge badge-outline">{{ activeDb }} connected</div>
+      </div>
+
+      <!-- Projects -->
+      <div class="card bg-base-100 shadow-lg mb-4">
+        <div class="card-body">
+          <h2 class="card-title">Projects</h2>
+          <div class="flex gap-2 mt-2">
+            <input v-model="newProjectName" placeholder="Project name" class="input input-bordered input-sm flex-1" @keyup.enter="createProject">
+            <button @click="createProject" class="btn btn-primary btn-sm">Create</button>
+          </div>
+          <ul class="mt-2">
+            <li v-for="p in projects" :key="p.id" class="flex justify-between items-center py-2 border-b last:border-b-0">
+              <div>
+                <span class="font-bold">{{ p.name }}</span>
+                <span class="text-xs text-base-content/50 ml-2">{{ new Date(p.createdAt).toLocaleString() }}</span>
+              </div>
+              <div class="flex gap-2">
+                <button @click="selectProject(p)" class="btn btn-ghost btn-xs">Manage</button>
+                <button @click="deleteProject(p)" class="btn btn-error btn-xs">Delete</button>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Selected Project Detail -->
+      <template v-if="selectedProject">
+        <div class="card bg-base-100 shadow-lg">
+          <div class="card-body">
+            <h2 class="card-title flex justify-between items-center">
+              <span>{{ selectedProject.name }}</span>
+              <button @click="selectedProject = null" class="btn btn-ghost btn-sm">Close</button>
+            </h2>
+
+            <div role="tablist" class="tabs tabs-lifted tabs-primary mt-4">
+              <button @click="activeTab = 'envs'" role="tab" class="tab" :class="{ 'tab-active': activeTab === 'envs' }">Envs</button>
+              <button @click="activeTab = 'keys'" role="tab" class="tab" :class="{ 'tab-active': activeTab === 'keys' }">API Keys</button>
+              <button @click="activeTab = 'whitelist'" role="tab" class="tab" :class="{ 'tab-active': activeTab === 'whitelist' }">Whitelist</button>
+              <button @click="activeTab = 'settings'" role="tab" class="tab" :class="{ 'tab-active': activeTab === 'settings' }">Settings</button>
+            </div>
+
+            <!-- Envs Tab -->
+            <template v-if="activeTab === 'envs'">
+              <div class="mt-4">
+                <div class="flex gap-2 mb-2">
+                  <input v-model="envForm.key" placeholder="KEY_NAME" class="input input-bordered input-sm mono flex-1">
+                  <input v-model="envForm.value" placeholder="value" class="input input-bordered input-sm flex-1">
+                  <label class="label cursor-pointer gap-2"><span class="label-text text-xs">api-mode-only</span><input type="checkbox" v-model="envForm.apiModeOnly" class="toggle toggle-sm toggle-primary"></label>
+                  <button @click="saveEnv" class="btn btn-primary btn-sm">{{ envExists ? 'Update' : 'Save' }}</button>
+                </div>
+                <table class="table table-xs">
+                  <thead><tr><th>Key</th><th>api-mode-only</th><th>Created</th><th></th></tr></thead>
+                  <tbody>
+                    <tr v-for="env in envs" :key="env.id" @click="envForm.key = env.key; envForm.apiModeOnly = env.apiModeOnly;" class="cursor-pointer hover:bg-base-200">
+                      <td class="mono font-bold">{{ env.key }}</td>
+                      <td><span v-if="env.apiModeOnly" class="badge badge-warning badge-sm">api-only</span><span v-else class="badge badge-ghost badge-sm">cli-ok</span></td>
+                      <td>{{ new Date(env.createdAt).toLocaleString() }}</td>
+                      <td><button @click.stop="deleteEnv(env.key)" class="btn btn-error btn-xs">Delete</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+
+            <!-- API Keys Tab -->
+            <template v-if="activeTab === 'keys'">
+              <div class="mt-4">
+                <div class="flex gap-2 mb-2 items-center">
+                  <input v-model="newKeyTtl" placeholder="TTL in seconds (optional)" type="number" class="input input-bordered input-sm w-48">
+                  <button @click="createApiKey" class="btn btn-primary btn-sm">Generate Key</button>
+                  <label class="label cursor-pointer gap-2 ml-4"><span class="label-text text-xs">Auto-accept client generation requests</span><input type="checkbox" v-model="autoAcceptApiKey" class="toggle toggle-sm toggle-primary"></label>
+                </div>
+                <p v-if="lastCreatedKey" class="text-success font-bold mono mt-2">Created: {{ lastCreatedKey }} <span class="text-xs text-base-content/50">(copy now, it will not be shown again)</span></p>
+                <table class="table table-xs mt-2">
+                  <thead><tr><th>Preview</th><th>TTL</th><th>Expires</th><th>Created</th><th></th></tr></thead>
+                  <tbody>
+                    <tr v-for="k in apiKeys" :key="k.id">
+                      <td class="mono">{{ k.maskedPreview }}</td>
+                      <td>{{ k.ttl ? k.ttl + 's' : 'never' }}</td>
+                      <td>{{ k.expiresAt ? new Date(k.expiresAt).toLocaleString() : 'never' }}</td>
+                      <td>{{ new Date(k.createdAt).toLocaleString() }}</td>
+                      <td><button @click="revokeKey(k.id)" class="btn btn-error btn-xs">Revoke</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+
+            <!-- Whitelist Tab -->
+            <template v-if="activeTab === 'whitelist'">
+              <div class="mt-4">
+                <div class="flex gap-2 mb-2">
+                  <input v-model="wlForm.fingerprint" placeholder="Client fingerprint (SHA-256 prefix)" class="input input-bordered input-sm mono flex-1">
+                  <button @click="addWhitelist" class="btn btn-primary btn-sm">Add (approved)</button>
+                </div>
+                <table class="table table-xs mt-2">
+                  <thead><tr><th>Fingerprint</th><th>Status</th><th>Created</th><th></th></tr></thead>
+                  <tbody>
+                    <tr v-for="wl in whitelist" :key="wl.id" :class="{ 'bg-warning/20': wl.status === 'pending' }">
+                      <td class="mono">{{ wl.fingerprint }}</td>
+                      <td>
+                        <span v-if="wl.status === 'approved'" class="badge badge-success badge-sm">approved</span>
+                        <span v-else-if="wl.status === 'rejected'" class="badge badge-error badge-sm">rejected</span>
+                        <span v-else class="badge badge-warning badge-sm">pending</span>
+                      </td>
+                      <td>{{ new Date(wl.createdAt).toLocaleString() }}</td>
+                      <td>
+                        <template v-if="wl.status === 'pending'">
+                          <button @click="approveWhitelist(wl)" class="btn btn-success btn-xs mr-1">Accept</button>
+                          <button @click="rejectWhitelist(wl)" class="btn btn-error btn-xs">Reject</button>
+                        </template>
+                        <template v-else>
+                          <button @click="deleteWhitelist(wl)" class="btn btn-ghost btn-xs">Remove</button>
+                        </template>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+
+            <!-- Settings Tab -->
+            <template v-if="activeTab === 'settings'">
+              <div class="mt-4 space-y-4">
+                <p class="text-sm text-base-content/70">Database type: <strong class="mono">{{ activeDb }}</strong></p>
+                <p class="text-sm text-base-content/70">Server PK: <strong v-if="pkVerified" class="text-success">Loaded</strong><span v-else class="text-warning">Needs input</span></p>
+              </div>
+            </template>
+
+          </div>
+        </div>
+      </template>
+
+      <!-- Real-time notification -->
+      <div v-if="pendingNotifications.length" class="toast toast-end">
+        <div v-for="n in pendingNotifications" :key="n.fingerprint" class="alert alert-warning shadow-lg">
+          <div>
+            <h3 class="font-bold">New whitelist request</h3>
+            <p class="text-xs mono">{{ n.projectName }} - fingerprint: {{ n.fingerprint }}</p>
+            <div class="flex gap-2 mt-2">
+              <button @click="approveNotification(n)" class="btn btn-success btn-xs">Approve</button>
+              <button @click="rejectNotification(n)" class="btn btn-error btn-xs">Reject</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <script>
+    const { createApp, ref, computed, watch, onMounted } = Vue
+
+    createApp({
+      setup() {
+        const pkStatus = ref('<%- pkStatus %>')
+        const existing = ref('<%- existing %>')
+        const generatedMnemonic = ref('')
+        const submittedMnemonic = ref('')
+        const pkError = ref('')
+        const pkSubmitting = ref(false)
+        const activeDb = ref('<%- activeDb %>')
+        const pkVerified = ref(false)
+
+        const projects = ref([])
+        const newProjectName = ref('')
+        const selectedProject = ref(null)
+        const activeTab = ref('envs')
+
+        const envs = ref([])
+        const envForm = ref({ key: '', value: '', apiModeOnly: false })
+
+        const apiKeys = ref([])
+        const newKeyTtl = ref(undefined)
+        const lastCreatedKey = ref('')
+        const autoAcceptApiKey = ref(false)
+
+        const whitelist = ref([])
+        const wlForm = ref({ fingerprint: '' })
+
+        const pendingNotifications = ref([])
+        const ws = ref(null)
+
+        const envExists = computed(() => envs.value.some(e => e.key === envForm.value.key))
+
+        function api(path, opts = {}) {
+          return fetch('/api' + path, { headers: { 'Content-Type': 'application/json' }, ...opts }).then(r => r.json())
+        }
+
+        function connectAdminWs() {
+          const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+          const url = proto + '://' + location.host + '/ws/admin'
+          ws.value = new WebSocket(url)
+          ws.value.onmessage = (e) => {
+            const data = JSON.parse(e.data)
+            if (data.event === 'whitelist_pending') {
+              pendingNotifications.value.push(data.payload)
+            }
+            if (data.event === 'apikey_gen_request') {
+              pendingNotifications.value.push({ ...data.payload, type: 'apikey' })
+            }
+          }
+          ws.value.onclose = () => setTimeout(connectAdminWs, 3000)
+        }
+
+        async function submitPk() {
+          if (!submittedMnemonic.value.trim()) { pkError.value = 'Enter mnemonic'; return }
+          pkSubmitting.value = true
+          pkError.value = ''
+          try {
+            const res = await fetch('/api/pk/setup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mnemonic: submittedMnemonic.value }) })
+            const data = await res.json()
+            if (!res.ok) { pkError.value = data.error; pkSubmitting.value = false; return }
+            pkStatus.value = 'ready'
+            pkVerified.value = true
+            await loadProjects()
+            connectAdminWs()
+          } catch (e) { pkError.value = e.message; pkSubmitting.value = false }
+        }
+
+        async function loadProjects() { projects.value = await api('/projects') }
+        async function createProject() {
+          if (!newProjectName.value) return
+          await api('/projects', { method: 'POST', body: JSON.stringify({ name: newProjectName.value }) })
+          newProjectName.value = ''
+          await loadProjects()
+        }
+        async function deleteProject(p) { if (confirm('Delete project "' + p.name + '" and all its data?')) { await api('/projects/' + p.id, { method: 'DELETE' }); selectedProject.value = null; await loadProjects() } }
+        async function selectProject(p) { selectedProject.value = p; await loadProjectData() }
+
+        async function loadProjectData() {
+          if (!selectedProject.value) return
+          envs.value = await api('/envs/project/' + selectedProject.value.id)
+          apiKeys.value = await api('/apikeys/project/' + selectedProject.value.id)
+          whitelist.value = await api('/whitelist/project/' + selectedProject.value.id)
+          autoAcceptApiKey.value = false
+        }
+
+        async function saveEnv() {
+          const project = selectedProject.value
+          if (!project || !envForm.value.key) return
+          if (envExists.value) {
+            await api('/envs/project/' + project.id, { method: 'PUT', body: JSON.stringify(envForm.value) })
+          } else {
+            await api('/envs/project/' + project.id, { method: 'POST', body: JSON.stringify(envForm.value) })
+          }
+          envForm.value.value = ''
+          await loadProjectData()
+        }
+        async function deleteEnv(key) { await api('/envs/project/' + selectedProject.value.id + '/' + encodeURIComponent(key), { method: 'DELETE' }); await loadProjectData() }
+
+        async function createApiKey() {
+          const res = await api('/apikeys/project/' + selectedProject.value.id, { method: 'POST', body: JSON.stringify({ ttl: newKeyTtl.value || undefined }) })
+          lastCreatedKey.value = res.plainKey
+          await loadProjectData()
+        }
+        async function revokeKey(id) { await api('/apikeys/project/' + selectedProject.value.id + '/' + id, { method: 'DELETE' }); await loadProjectData() }
+
+        async function addWhitelist() {
+          if (!wlForm.value.fingerprint) return
+          await api('/whitelist/project/' + selectedProject.value.id, { method: 'POST', body: JSON.stringify({ fingerprint: wlForm.value.fingerprint, status: 'approved' }) })
+          wlForm.value.fingerprint = ''
+          await loadProjectData()
+        }
+        async function approveWhitelist(wl) { await api('/whitelist/project/' + selectedProject.value.id + '/' + wl.id, { method: 'PUT', body: JSON.stringify({ status: 'approved' }) }); await loadProjectData() }
+        async function rejectWhitelist(wl) { await api('/whitelist/project/' + selectedProject.value.id + '/' + wl.id, { method: 'PUT', body: JSON.stringify({ status: 'rejected' }) }); await loadProjectData() }
+        async function deleteWhitelist(wl) { /* simple delete not needed, just set rejected and ignore */ wl.status = 'rejected'; }
+
+        async function approveNotification(n) {
+          await api('/whitelist/project/' + n.projectId, { method: 'POST', body: JSON.stringify({ fingerprint: n.fingerprint, status: 'approved' }) })
+          pendingNotifications.value = pendingNotifications.value.filter(x => x.fingerprint !== n.fingerprint)
+        }
+        async function rejectNotification(n) {
+          await api('/whitelist/project/' + n.projectId, { method: 'POST', body: JSON.stringify({ fingerprint: n.fingerprint, status: 'rejected' }) })
+          pendingNotifications.value = pendingNotifications.value.filter(x => x.fingerprint !== n.fingerprint)
+        }
+
+        onMounted(async () => {
+          if (existing.value === 'first') {
+            const res = await fetch('/api/pk/generate')
+            const data = await res.json()
+            generatedMnemonic.value = data.mnemonic
+            submittedMnemonic.value = data.mnemonic
+          }
+          if (pkStatus.value === 'ready') {
+            pkVerified.value = true
+            await loadProjects()
+            connectAdminWs()
+          }
+        })
+
+        return {
+          pkStatus, existing, generatedMnemonic, submittedMnemonic, pkError, pkSubmitting, pkVerified,
+          activeDb, projects, newProjectName, selectedProject, activeTab,
+          envs, envForm, envExists, apiKeys, newKeyTtl, lastCreatedKey, autoAcceptApiKey,
+          whitelist, wlForm, pendingNotifications,
+          loadProjects, createProject, deleteProject, selectProject,
+          submitPk, saveEnv, deleteEnv, createApiKey, revokeKey,
+          addWhitelist, approveWhitelist, rejectWhitelist, deleteWhitelist,
+          approveNotification, rejectNotification
+        }
+      }
+    }).mount('#app')
+  </script>
+</body>
+</html>

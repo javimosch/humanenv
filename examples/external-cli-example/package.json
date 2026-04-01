@@ -1,0 +1,12 @@
+{
+  "name": "external-cli-example",
+  "version": "1.0.0",
+  "description": "Example app demonstrating humanenv usage",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "humanenv": "file:../../packages/client"
+  }
+}

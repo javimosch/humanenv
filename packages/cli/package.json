@@ -1,0 +1,16 @@
+{
+  "name": "humanenv-cli",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "humanenv": "./src/bin.js"
+  },
+  "scripts": {
+    "dev": "node src/bin.js"
+  },
+  "dependencies": {
+    "humanenv-shared": "file:../shared",
+    "humanenv": "file:../client",
+    "commander": "^12.1.0"
+  }
+}
