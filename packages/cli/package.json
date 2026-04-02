@@ -9,8 +9,7 @@
     "dev": "node src/bin.js"
   },
   "dependencies": {
-    "humanenv-shared": "file:../shared",
-    "humanenv": "file:../client",
-    "commander": "^12.1.0"
+    "commander": "^12.1.0",
+    "humanenv-shared": "file:../shared"
   }
 }
