@@ -1,0 +1,125 @@
+# HumanEnv - NPM Ignore
+
+# ============================================================
+# Dependencies (never include node_modules)
+# ============================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================================
+# Build Output (will be rebuilt by consumers)
+# ============================================================
+dist/
+build/
+*.tsbuildinfo
+*.js.map
+*.d.ts.map
+
+# ============================================================
+# Runtime Data (sensitive user data)
+# ============================================================
+# SQLite database
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Humanenv data directory
+.humanenv/
+humanenv.db
+
+# ============================================================
+# Environment & Secrets (CRITICAL - never expose)
+# ============================================================
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+.env.example
+
+# Credentials and keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+certs/
+secrets/
+
+# ============================================================
+# IDE & Editor
+# ============================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ============================================================
+# Testing & Coverage
+# ============================================================
+coverage/
+.nyc_output/
+*.lcov
+test-results/
+playwright-report/
+tests/
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+
+# ============================================================
+# Logs
+# ============================================================
+logs/
+*.log
+audit.log
+
+# ============================================================
+# Docker & Deployment
+# ============================================================
+.docker/
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# ============================================================
+# Documentation (not needed in package)
+# ============================================================
+docs/
+examples/
+README.md
+
+# ============================================================
+# Development Tools
+# ============================================================
+.qwen/
+.agents/
+tmp/
+temp/
+.cache/
+.parcel-cache/
+
+# ============================================================
+# Git
+# ============================================================
+.git/
+.gitignore
+.gitattributes
+.gitmodules
+
+# ============================================================
+# NPM Publish
+# ============================================================
+.npmignore
+.eslintignore
+.eslintrc*
+.prettierrc*
+.editorconfig
+tsconfig.json
