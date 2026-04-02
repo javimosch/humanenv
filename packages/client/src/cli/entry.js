@@ -1,42 +1,29 @@
-// humanenv CLI - entry point for bundling (esbuild adds shebang via banner).
-// esbuild resolves all imports from this file.
+// humanenv CLI - entry point for bundling
 const { Command } = require('commander')
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
 
-// Import from local package sources (esbuild bundles these)
-const { generateFingerprint, SKILL_CONTENT, ErrorCode, HumanEnvError } = require('../shared/index')
+const { generateFingerprint, SKILL_CONTENT } = require('../shared/index')
 const { HumanEnvClient } = require('../ws-manager')
 
-const program = new Command()
 const CREDENTIALS_DIR = path.join(os.homedir(), '.humanenv')
 
-// ==========================================================
-// Globals
-// ==========================================================
-let jsonMode = false
+// --json must be detected before Commander strips args
+const rawArgs = process.argv.slice(2)
+const isJson = rawArgs.includes('--json')
+const cleanArgs = rawArgs.filter(a => a !== '--json' && a !== '-j')
 
-program.requiredOption('--json')
-program.action(() => {})
-
-function resolveCreds(opts) {
-  const creds = {
-    projectName: opts.projectName || null,
-    serverUrl: opts.serverUrl || null,
-    apiKey: opts.apiKey || null,
+// ==========================================================
+// Helpers
+// ==========================================================
+function ensureSkillFile() {
+  const skillPath = path.join(process.cwd(), '.agents', 'skills', 'humanenv-usage', 'SKILL.md')
+  if (!fs.existsSync(skillPath)) {
+    fs.mkdirSync(path.dirname(skillPath), { recursive: true })
+    fs.writeFileSync(skillPath, SKILL_CONTENT, 'utf8')
+    if (process.stdout.isTTY && !isJson) console.log('Generated .agents/skills/humanenv-usage/SKILL.md')
   }
-  if (!creds.projectName || !creds.serverUrl) {
-    const stored = readCredentials()
-    if (!stored && (!creds.projectName || !creds.serverUrl)) {
-      console.error('Error: Not authenticated. Run: humanenv auth --project-name <name> --server-url <url>')
-      process.exit(1)
-    }
-    if (!creds.projectName) creds.projectName = stored.projectName
-    if (!creds.serverUrl) creds.serverUrl = stored.serverUrl
-    if (!creds.apiKey) creds.apiKey = stored.apiKey || null
-  }
-  return creds
 }
 
 function ensureCredentialsDir() {
@@ -45,8 +32,8 @@ function ensureCredentialsDir() {
 
 function readCredentials() {
   const p = path.join(CREDENTIALS_DIR, 'credentials.json')
-  if (!fs.existsSync(p)) return null
-  try { return JSON.parse(fs.readFileSync(p, 'utf8')) } catch { return null }
+  if (!fs.existsSync(p)) return {}
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')) } catch { return {} }
 }
 
 function writeCredentials(data) {
@@ -54,227 +41,205 @@ function writeCredentials(data) {
   fs.writeFileSync(path.join(CREDENTIALS_DIR, 'credentials.json'), JSON.stringify(data, null, 2), 'utf8')
 }
 
-function ensureSkillFile() {
-  const skillPath = path.join(process.cwd(), '.agents', 'skills', 'humanenv-usage', 'SKILL.md')
-  if (!fs.existsSync(skillPath)) {
-    fs.mkdirSync(path.dirname(skillPath), { recursive: true })
-    fs.writeFileSync(skillPath, SKILL_CONTENT, 'utf8')
-    if (process.stdout.isTTY && !jsonMode) console.log('Generated .agents/skills/humanenv-usage/SKILL.md')
-  }
-}
-
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 
+function mergeProjectName(opts) { return opts.projectName || opts.pn }
+function mergeServerUrl(opts)  { return opts.serverUrl  || opts.su }
+
 // ==========================================================
-// Auth flow
+// Auth
 // ==========================================================
-async function doAuth(opts) {
+async function runAuth(opts) {
   ensureSkillFile()
-  if (!opts.projectName || !opts.serverUrl) {
-    console.error('Error: --project-name and --server-url required')
+
+  const projectName = mergeProjectName(opts)
+  const serverUrl   = mergeServerUrl(opts)
+
+  if (!projectName || !serverUrl) {
+    if (isJson) console.log(JSON.stringify({ success: false, error: '--project-name and --server-url required' }))
+    else console.error('Error: --project-name and --server-url required')
     process.exit(1)
   }
 
-  const creds = {
-    projectName: opts.projectName,
-    serverUrl: opts.serverUrl,
-    apiKey: opts.apiKey || undefined,
-  }
-  writeCredentials(creds)
+  writeCredentials({ projectName, serverUrl, apiKey: opts.apiKey || undefined })
 
+  // --generate-api-key: one-shot, no poll
   if (opts.generateApiKey) {
-    const client = new HumanEnvClient({
-      serverUrl: opts.serverUrl,
-      projectName: opts.projectName,
-      projectApiKey: opts.apiKey || '',
-      maxRetries: 1,
-    })
+    const client = new HumanEnvClient({ serverUrl, projectName, projectApiKey: opts.apiKey || '', maxRetries: 1 })
     try {
       await client.connect()
       const apiKey = await client.generateApiKey()
-      if (jsonMode) {
-        console.log(JSON.stringify({ ok: true, apiKey }))
-      } else {
-        console.log('API key generated:', apiKey)
-      }
-      client.disconnect()
+      if (isJson) console.log(JSON.stringify({ success: true, apiKey }))
+      else console.log('API key generated:', apiKey)
     } catch (e) {
-      if (jsonMode) {
-        console.log(JSON.stringify({ ok: false, error: e.message }))
-      } else {
-        console.error('API key generation failed:', e.message)
-      }
+      if (isJson) console.log(JSON.stringify({ success: false, error: e.message }))
+      else console.error('Auth failed: API key generation rejected or timeout')
       process.exit(1)
-    }
+    } finally { client.disconnect() }
     return
   }
 
   // Normal auth
-  const client = new HumanEnvClient({
-    serverUrl: opts.serverUrl,
-    projectName: opts.projectName,
-    projectApiKey: opts.apiKey || '',
-    maxRetries: 1,
-  })
+  let client = new HumanEnvClient({ serverUrl, projectName, projectApiKey: opts.apiKey || '', maxRetries: 1 })
 
   try {
     await client.connect()
   } catch (e) {
-    if (jsonMode) {
-      console.log(JSON.stringify({ ok: false, error: e.message }))
-    } else {
-      console.error('Auth failed:', e.message)
-    }
+    if (isJson) console.log(JSON.stringify({ success: false, error: e.message }))
+    else console.error('Auth failed:', e.message)
     process.exit(1)
   }
 
-  const whitelistStatus = client.whitelistStatus
-
-  if (whitelistStatus === 'approved') {
-    if (jsonMode) {
-      console.log(JSON.stringify({ ok: true, whitelisted: true }))
-    } else {
-      console.log('Authenticated and whitelisted.')
-    }
-  } else if (process.stdout.isTTY && !jsonMode) {
-    // TTY mode: poll until approved
-    console.log('Auth OK. Not whitelisted yet. Waiting for admin approval...')
-    const maxWait = 120_000 // 2 minutes max
-    const pollInterval = 1000 // 1 second
-    let waited = 0
-    while (waited < maxWait) {
-      await sleep(pollInterval)
-      waited += pollInterval
-      try {
-        await client.connectAndWaitForAuth(5000)
-        if (client.whitelistStatus === 'approved') {
-          console.log('Whitelisted and approved.')
-          break
-        }
-      } catch {
-        // not yet approved, keep polling
-      }
-    }
-    if (client.whitelistStatus !== 'approved') {
-      console.log('Admin has not approved yet. The fingerprint will be pending until accepted.')
-    }
+  if (client.whitelistStatus === 'approved') {
+    if (isJson) console.log(JSON.stringify({ success: true, whitelisted: true }))
+    else console.log('Successfully authenticated.')
   } else {
-    // Non-TTY mode: just report status
-    if (jsonMode) {
-      console.log(JSON.stringify({ ok: true, whitelisted: false, status: whitelistStatus || 'pending' }))
+    if (process.stdout.isTTY && !isJson) {
+      // TTY: poll every 1s, fresh client each attempt
+      console.log('Successfully authenticated.')
+      console.log('Your fingerprint is not approved yet by the server.')
+      console.log('Waiting for admin approval...')
+      let attempts = 0
+      const MAX = 120
+      while (attempts < MAX) {
+        attempts++
+        await sleep(1000)
+        try {
+          if (client) client.disconnect()
+          await sleep(100)
+          client = new HumanEnvClient({ serverUrl, projectName, projectApiKey: opts.apiKey || '', maxRetries: 1 })
+          await client.connect()
+          if (client.whitelistStatus === 'approved') {
+            console.log('Whitelisted and approved.')
+            break
+          }
+        } catch { /* retry */ }
+      }
+      if (!client || client.whitelistStatus !== 'approved') {
+        console.log('Admin has not approved yet. The fingerprint will be pending until accepted.')
+      }
     } else {
-      const status = whitelistStatus ? `(whitelist: ${whitelistStatus}) ` : ''
-      console.log(`${status}Auth OK but not whitelisted yet. Admin approval required.`)
+      // Non-TTY / --json: return immediately
+      if (isJson) console.log(JSON.stringify({ success: true, whitelisted: false, status: client.whitelistStatus || 'pending' }))
+      else {
+        console.log('Successfully authenticated.')
+        console.log('Your fingerprint is not approved yet by the server.')
+        console.log('Pending approval.')
+      }
     }
   }
 
-  client.disconnect()
-  console.log('Credentials stored in', path.join(CREDENTIALS_DIR, 'credentials.json'))
+  if (client) client.disconnect()
+  if (!isJson) console.log('Credentials stored in', path.join(CREDENTIALS_DIR, 'credentials.json'))
 }
 
 // ==========================================================
-// Main program
+// Resolve creds with overrides (get / set)
 // ==========================================================
-program
-  .action(() => {
-    ensureSkillFile()
-    const isNonTerminal = !process.stdout.isTTY || jsonMode
-    if (isNonTerminal) {
-      const skillPath = path.join(process.cwd(), '.agents', 'skills', 'humanenv-usage', 'SKILL.md')
-      console.log(fs.readFileSync(skillPath, 'utf8'))
-    } else {
-      console.log('HumanEnv - Secure environment variable injection')
-      console.log('')
-      console.log('Usage:')
-      console.log('  humanenv auth --project-name <name> --server-url <url> [--api-key <key>]')
-      console.log('  humanenv auth --project-name <name> --server-url <url> --generate-api-key')
-      console.log('  humanenv get <key>')
-      console.log('  humanenv set <key> <value>')
-      console.log('  humanenv server [--port 3056] [--basicAuth]')
-      console.log('')
-    }
-  })
+function resolveCreds(opts) {
+  const stored    = readCredentials()
+  const projectName = mergeProjectName(opts) || stored.projectName
+  const serverUrl   = mergeServerUrl(opts)  || stored.serverUrl
+  if (!projectName || !serverUrl) {
+    if (isJson) console.log(JSON.stringify({ success: false, error: 'Not authenticated. Run: humanenv auth --project-name <name> --server-url <url>' }))
+    else console.error('Error: Not authenticated. Run: humanenv auth --project-name <name> --server-url <url>')
+    process.exit(1)
+  }
+  return { projectName, serverUrl, apiKey: opts.apiKey || stored.apiKey || '' }
+}
 
+// ==========================================================
+// Sub-commands
+// ==========================================================
+const program = new Command()
+
+const nameOpt = { flags: '--project-name <name>', description: 'Project name' }
+const urlOpt  = { flags: '--server-url <url>',    description: 'Server URL' }
+const pnOpt   = { flags: '--pn <name>',           description: 'Project name (alias)' }
+const suOpt   = { flags: '--su <url>',            description: 'Server URL (alias)' }
+
+// auth
 program
   .command('auth')
-  .option('-p, --project-name <name>')
-  .option('-s, --server-url <url>')
-  .option('--api-key <key>')
-  .option('--generate-api-key', false)
-  .action(async (opts) => {
-    await doAuth(opts)
-  })
+  .description('Authenticate with a HumanEnv server')
+  .option(nameOpt.flags, nameOpt.description)
+  .option(pnOpt.flags, pnOpt.description)
+  .option(urlOpt.flags, urlOpt.description)
+  .option(suOpt.flags, suOpt.description)
+  .option('--api-key <key>', 'API key (optional)')
+  .option('--generate-api-key', 'Request a new API key from the server')
+  .action(async (opts) => { await runAuth(opts) })
 
+// get
 program
   .command('get')
+  .description('Retrieve an environment variable')
   .argument('<key>', 'Environment variable key')
-  .option('-p, --project-name <name>', 'Project name (override stored credentials)')
-  .option('-s, --server-url <url>', 'Server URL (override stored credentials)')
-  .option('--api-key <key>', 'API key (override stored credentials)')
+  .option(nameOpt.flags, nameOpt.description)
+  .option(pnOpt.flags, pnOpt.description)
+  .option(urlOpt.flags, urlOpt.description)
+  .option(suOpt.flags, suOpt.description)
   .action(async (key, opts) => {
     const creds = resolveCreds(opts)
+    const client = new HumanEnvClient({ serverUrl: creds.serverUrl, projectName: creds.projectName, projectApiKey: creds.apiKey || '', maxRetries: 3 })
     try {
-      const client = new HumanEnvClient({
-        serverUrl: creds.serverUrl,
-        projectName: creds.projectName,
-        projectApiKey: creds.apiKey || '',
-        maxRetries: 3,
-      })
       await client.connect()
       const value = await client.get(key)
-      if (process.stdout.isTTY && !jsonMode) {
-        console.log(value)
-      } else {
-        process.stdout.write(value)
-      }
-      client.disconnect()
-      process.exit(0)
+      if (isJson)     console.log(JSON.stringify({ value }))
+      else if (!process.stdout.isTTY) process.stdout.write(value)
+      else            console.log(value)
     } catch (e) {
-      if (jsonMode) {
-        console.log(JSON.stringify({ ok: false, error: e.message }))
-      } else {
-        console.error('Failed to get env:', e.message)
-      }
+      if (isJson) console.log(JSON.stringify({ success: false, error: e.message }))
+      else console.error('Failed to get env:', e.message)
       process.exit(1)
-    }
+    } finally { client.disconnect() }
   })
 
+// set
 program
   .command('set')
+  .description('Set an environment variable')
   .argument('<key>', 'Environment variable key')
   .argument('<value>', 'Environment variable value')
-  .option('-p, --project-name <name>', 'Project name (override stored credentials)')
-  .option('-s, --server-url <url>', 'Server URL (override stored credentials)')
-  .option('--api-key <key>', 'API key (override stored credentials)')
+  .option(nameOpt.flags, nameOpt.description)
+  .option(pnOpt.flags, pnOpt.description)
+  .option(urlOpt.flags, urlOpt.description)
+  .option(suOpt.flags, suOpt.description)
   .action(async (key, value, opts) => {
     const creds = resolveCreds(opts)
+    const client = new HumanEnvClient({ serverUrl: creds.serverUrl, projectName: creds.projectName, projectApiKey: creds.apiKey || '', maxRetries: 3 })
     try {
-      const client = new HumanEnvClient({
-        serverUrl: creds.serverUrl,
-        projectName: creds.projectName,
-        projectApiKey: creds.apiKey || '',
-        maxRetries: 3,
-      })
       await client.connect()
       await client.set(key, value)
-      if (jsonMode) {
-        console.log(JSON.stringify({ ok: true, key }))
-      } else {
-        console.log('Set', key)
-      }
-      client.disconnect()
-      process.exit(0)
+      if (isJson) console.log(JSON.stringify({ success: true }))
+      else        console.log('Set', key)
     } catch (e) {
-      if (jsonMode) {
-        console.log(JSON.stringify({ ok: false, error: e.message }))
-      } else {
-        console.error('Failed to set env:', e.message)
-      }
+      if (isJson) console.log(JSON.stringify({ success: false, error: e.message }))
+      else console.error('Failed to set env:', e.message)
       process.exit(1)
-    }
+    } finally { client.disconnect() }
   })
 
-// Handle --json flag at the top level (must be before parse)
-jsonMode = process.argv.includes('--json') || process.argv.includes('-j')
+program.parse(cleanArgs)
 
-program.parse(process.argv)
+// No sub-command matched → bare `humanenv`
+if (!process.argv.slice(2).some(a => /^auth|get|set$/.test(a))) {
+  ensureSkillFile()
+  if (!process.stdout.isTTY || isJson) {
+    const sp = path.join(process.cwd(), '.agents', 'skills', 'humanenv-usage', 'SKILL.md')
+    if (fs.existsSync(sp)) console.log(fs.readFileSync(sp, 'utf8'))
+  } else {
+    console.log('HumanEnv - Secure environment variable injection')
+    console.log('')
+    console.log('Usage:')
+    console.log('  humanenv auth --project-name <name> --server-url <url> [--api-key <key>]')
+    console.log('  humanenv auth --project-name <name> --server-url <url> --generate-api-key')
+    console.log('  humanenv get <key>')
+    console.log('  your-app set <key> <value>')
+    console.log('Flags:')
+    console.log('  --pn  alias for --project-name')
+    console.log('  --su  alias for --server-url')
+    console.log('  --json  output JSON, behave like non-TTY')
+    console.log('')
+  }
+}
