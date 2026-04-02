@@ -116,6 +116,7 @@ if (!hasCmd && !wantsHelp) {
   const sp = path.join(process.cwd(), '.agents', 'skills', 'humanenv-usage', 'SKILL.md')
   const creds = readCredentials()
   const fp = generateFingerprint()
+  const adminUiWhitelistUrl = creds.serverUrl ? `${creds.serverUrl.replace(/\/$/, '')}/#/whitelist` : null
 
   if (!process.stdout.isTTY || isJson) {
     // Non-TTY / --json: skill content + auth status JSON
@@ -125,7 +126,9 @@ if (!hasCmd && !wantsHelp) {
       console.error(JSON.stringify({
         code: 'AUTH_STATUS', status: 'credentials_found',
         fingerprint: fp, projectName: creds.projectName, serverUrl: creds.serverUrl,
-        step: 'Run humanenv auth to connect, then ask the admin to whitelist your fingerprint in the dashboard.'
+        adminUiWhitelistUrl: adminUiWhitelistUrl,
+        step: 'Run humanenv auth to connect, then ask the admin to whitelist your fingerprint in the dashboard.',
+        guidance: `Share this fingerprint with the admin or send them the whitelist URL: ${adminUiWhitelistUrl}`
       }))
     } else {
       console.error(JSON.stringify({
@@ -139,7 +142,10 @@ if (!hasCmd && !wantsHelp) {
     console.log('')
     console.log('Your fingerprint:', fp)
     console.log('Share this with the project admin to whitelist.')
-    if (creds.serverUrl) console.log('Admin UI:', creds.serverUrl)
+    if (creds.serverUrl) {
+      console.log('Admin UI:', creds.serverUrl)
+      console.log('Whitelist page:', adminUiWhitelistUrl)
+    }
     console.log('')
     if (creds.projectName && creds.serverUrl) {
       console.log('Credentials configured:')
@@ -149,6 +155,7 @@ if (!hasCmd && !wantsHelp) {
       console.log('Next steps:')
       console.log('  1. Run:  humanenv auth')
       console.log('  2. Admin whitelists your fingerprint in the dashboard at', creds.serverUrl)
+      console.log('     Direct whitelist link:', adminUiWhitelistUrl)
       console.log('  3. Start using:  humanenv get <key>')
     } else {
       console.log('Usage:')
@@ -239,6 +246,7 @@ async function runAuth(opts) {
     await client.connect()
   } catch (e) {
     const fingerprint = generateFingerprint()
+    const adminUiWhitelistUrl = `${serverUrl.replace(/\/$/, '')}/#/whitelist`
     let hint = 'Re-run auth to retry.'
     if (/ECONNREFUSED|ENOTFOUND/i.test(e.message)) {
       hint = `Start the server first:  humanenv server   (or check --server-url)`
@@ -247,9 +255,9 @@ async function runAuth(opts) {
     } else if (/api.*key.*invalid/i.test(e.message)) {
       hint = 'Re-run auth with --generate-api-key to request a new key from the admin.'
     }
-    failJson('AUTH_FAILED', 
+    failJson('AUTH_FAILED',
       `Auth failed: ${e.message}`, hint,
-      { fingerprint, projectName, serverUrl })
+      { fingerprint, projectName, serverUrl, adminUiWhitelistUrl })
   }
 
   if (client.whitelistStatus === 'approved') {
@@ -264,12 +272,14 @@ async function runAuth(opts) {
 
   // Not approved yet
   const fingerprint = generateFingerprint()
-  
+  const adminUiWhitelistUrl = `${serverUrl.replace(/\/$/, '')}/#/whitelist`
+
   if (process.stdout.isTTY && !isJson) {
     // TTY mode: poll every 1s until approved or 120s timeout
     console.log('Auth OK, not whitelisted yet.')
     console.log('Fingerprint:', fingerprint)
     console.log('Waiting for admin approval... (120s timeout, Ctrl+C to abort)')
+    console.log('Admin whitelist URL:', adminUiWhitelistUrl)
 
     let attempts = 0
     while (attempts < 120) {
@@ -290,7 +300,8 @@ async function runAuth(opts) {
     // Timeout
     console.log('\nTimed out waiting for approval.')
     console.log('To approve manually: open the admin UI at ' + serverUrl)
-    console.log('Then go to the Whitelist tab and approve fingerprint:', fingerprint)
+    console.log('Direct whitelist page:', adminUiWhitelistUrl)
+    console.log('Then approve fingerprint:', fingerprint)
     return
   }
 
@@ -299,11 +310,13 @@ async function runAuth(opts) {
     console.error(errJson('AUTH_PENDING',
       'Auth OK but not whitelisted yet.',
       `Share this fingerprint with the admin to approve it.`,
-      { success: true, whitelisted: false, fingerprint, projectName, serverUrl,
-        step: 'admin_must_approve_whitelist' }))
+      { success: true, whitelisted: false, fingerprint, projectName, serverUrl, adminUiWhitelistUrl,
+        step: 'admin_must_approve_whitelist',
+        guidance: `Send the admin this whitelist URL: ${adminUiWhitelistUrl}` }))
   } else {
     console.log('Auth OK, not whitelisted yet.')
     console.log('Fingerprint:', fingerprint)
+    console.log('Admin whitelist URL:', adminUiWhitelistUrl)
     console.log('Share this with the admin to approve it.')
   }
 
@@ -329,7 +342,8 @@ function resolveCreds(opts) {
     projectName,
     serverUrl,
     apiKey: opts.apiKey || st.apiKey || '',
-    fingerprint: generateFingerprint()
+    fingerprint: generateFingerprint(),
+    adminUiWhitelistUrl: `${serverUrl.replace(/\/$/, '')}/#/whitelist`
   }
 }
 
@@ -372,12 +386,13 @@ program
       }
     } catch (e) {
       const fingerprint = c.fingerprint
+      const adminUiWhitelistUrl = c.adminUiWhitelistUrl
       let hint = null
       let code = 'GET_FAILED'
 
       if (/whitelist/i.test(e.message) || /not.*approved/i.test(e.message)) {
         code = 'CLIENT_NOT_WHITELISTED'
-        hint = `Run humanenv auth to submit your fingerprint. Then ask the admin to approve it at ${c.serverUrl}`
+        hint = `Run humanenv auth to submit your fingerprint. Then ask the admin to approve it at ${adminUiWhitelistUrl}`
       } else if (/api.?mode/i.test(e.message)) {
         code = 'ENV_API_MODE_ONLY'
         hint = 'This env flag is API-mode only: use the SDK (await humanenv.get()) instead of CLI.'
@@ -393,7 +408,7 @@ program
       }
 
       failJson(code, `Failed to get env: ${e.message}`, hint,
-        { key, fingerprint, projectName: c.projectName, serverUrl: c.serverUrl })
+        { key, fingerprint, projectName: c.projectName, serverUrl: c.serverUrl, adminUiWhitelistUrl })
     } finally { cli.disconnect() }
   })
 
@@ -421,12 +436,13 @@ program
       }
     } catch (e) {
       const fingerprint = c.fingerprint
+      const adminUiWhitelistUrl = c.adminUiWhitelistUrl
       let hint = null
       let code = 'SET_FAILED'
 
       if (/whitelist/i.test(e.message) || /not.*approved/i.test(e.message)) {
         code = 'CLIENT_NOT_WHITELISTED'
-        hint = `Run humanenv auth to submit your fingerprint. Then ask the admin to approve it at ${c.serverUrl}`
+        hint = `Run humanenv auth to submit your fingerprint. Then ask the admin to approve it at ${adminUiWhitelistUrl}`
       } else if (/ECONNREFUSED|ENOTFOUND/i.test(e.message)) {
         hint = `Start the server first: humanenv server  (or verify ${c.serverUrl})`
       } else if (/timeout/i.test(e.message)) {
@@ -434,7 +450,7 @@ program
       }
 
       failJson(code, `Failed to set env: ${e.message}`, hint,
-        { key, fingerprint, projectName: c.projectName, serverUrl: c.serverUrl })
+        { key, fingerprint, projectName: c.projectName, serverUrl: c.serverUrl, adminUiWhitelistUrl })
     } finally { cli.disconnect() }
   })
 
