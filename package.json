@@ -8,7 +8,6 @@
     "url": "git@github.com:javimosch/humanenv.git"
   },
   "license": "MIT",
-  "private": true,
   "workspaces": [
     "packages/shared",
     "packages/server",
