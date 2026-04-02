@@ -25,6 +25,7 @@ export class HumanEnvClient {
   private retryTimer: ReturnType<typeof setTimeout> | null = null
   private pingTimer: ReturnType<typeof setInterval> | null = null
   private reconnecting = false
+  private disconnecting = false
   private _authResolve: (() => void) | null = null
   private _authReject: ((e: Error) => void) | null = null
 
@@ -77,7 +78,7 @@ export class HumanEnvClient {
       this.connected = false
       this.authenticated = false
       this.stopPing()
-      if (!this.reconnecting) this.scheduleReconnect(reject)
+      if (!this.disconnecting && !this.reconnecting) this.scheduleReconnect(reject)
     })
 
     this.ws.on('error', () => { /* handled via close */ })
@@ -184,7 +185,9 @@ export class HumanEnvClient {
     this.reconnecting = true
     this.attempts++
     const delay = Math.min(1000 * Math.pow(2, this.attempts - 1), 30000)
-    console.error(`[humanenv] Reconnecting in ${delay}ms (attempt ${this.attempts}/${this.config.maxRetries})...`)
+    if (process.stdout.isTTY) {
+      console.error(`[humanenv] Reconnecting in ${delay}ms (attempt ${this.attempts}/${this.config.maxRetries})...`)
+    }
     this.retryTimer = setTimeout(() => {
       this.doConnect(() => {}, reject)
     }, delay)
@@ -253,6 +256,7 @@ export class HumanEnvClient {
   disconnect(): void {
     this.stopPing()
     if (this.retryTimer) { clearTimeout(this.retryTimer); this.retryTimer = null }
+    this.disconnecting = true
     this.reconnecting = false
     this.ws?.close()
   }
