@@ -1,6 +1,6 @@
 {
   "name": "humanenv",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Securely inject environment variables into your app. Secrets for humans only.",
   "author": "arancibiajav@gmail.com",
   "repository": {
