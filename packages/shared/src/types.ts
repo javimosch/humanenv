@@ -45,7 +45,6 @@ export type WsMessage =
   | { type: 'get_response'; payload: { key: string; value: string } | { error: string; code: string } }
   | { type: 'set'; payload: { key: string; value: string } }
   | { type: 'set_response'; payload: { success: boolean } | { error: string; code: string } }
-  | { type: 'generate_api_key'; payload: { projectName: string } }
   | { type: 'apikey_request'; payload: { clientFingerprint: string; projectName: string } }
   | { type: 'apikey_response'; payload: { success: boolean; apiKey?: string } | { error: string; code: string } }
   | { type: 'whitelist_request'; payload: { fingerprint: string; projectName: string } }
