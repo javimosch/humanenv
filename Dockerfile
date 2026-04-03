@@ -65,16 +65,11 @@ COPY --from=builder /app/packages/server/src ./packages/server/src
 COPY --from=builder /app/packages/shared/src ./packages/shared/src
 
 # Create data directory for SQLite and credentials
-RUN mkdir -p /home/humanenv/.humanenv && \
-    chown -R humanenv:humanenv /home/humanenv
+RUN mkdir -p /data/humanenv && \
+    chown -R humanenv:humanenv /data
 
 # Switch to non-root user
 USER humanenv
-
-# Set environment variables
-ENV NODE_ENV=production
-ENV HOME=/home/humanenv
-ENV DATA_DIR=/home/humanenv/.humanenv
 
 # Expose port
 EXPOSE 3056
@@ -110,7 +105,6 @@ COPY . .
 RUN mkdir -p /root/.humanenv
 
 ENV NODE_ENV=development
-ENV DATA_DIR=/root/.humanenv
 
 EXPOSE 3056
 

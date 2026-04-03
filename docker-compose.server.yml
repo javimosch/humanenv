@@ -28,6 +28,10 @@ services:
       # Generate once with: docker-compose exec humanenv-server node -e "console.log(require('./packages/shared/src/crypto.ts').generateMnemonic())"
       - HUMANENV_MNEMONIC=${HUMANENV_MNEMONIC:-}
       
+      # Temporal PK - write PK to disk on shutdown to survive auto-restarts
+      # Can also be enabled via admin UI Settings tab (persists to DB)
+      - HUMANENV_TEMPORAL_PK=${HUMANENV_TEMPORAL_PK:-}
+      
       # Basic auth for admin UI
       # Required if --basicAuth flag is used
       - BASIC_AUTH_USERNAME=${BASIC_AUTH_USERNAME:-admin}
@@ -41,7 +45,7 @@ services:
       # Data directory (SQLite storage location)
       - DATA_DIR=/data/humanenv
     volumes:
-      # Persist SQLite database and credentials
+      # Persist SQLite database, credentials, and temporal PK file
       - humanenv-data:/data/humanenv
       # Optional: Mount TLS certificates
       # - ./certs:/certs:ro
