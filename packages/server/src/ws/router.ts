@@ -135,14 +135,18 @@ export class WsRouter {
             return
           }
 
-          // API key is optional - if provided, validate it
+          // API key is optional - if provided and requireApiKey is true, validate it
+          // If server doesn't require API key, ignore provided key even if invalid
           if (apiKey && apiKey.trim() !== '') {
             const apiKeyDoc = await this.db.getApiKey(project.id, apiKey)
             if (!apiKeyDoc) {
-              send({ type: 'auth_response', payload: { success: false, whitelisted: false, error: ErrorMessages.CLIENT_AUTH_INVALID_API_KEY, code: ErrorCode.CLIENT_AUTH_INVALID_API_KEY } })
-              return
+              if (project.requireApiKey) {
+                send({ type: 'auth_response', payload: { success: false, whitelisted: false, error: ErrorMessages.CLIENT_AUTH_INVALID_API_KEY, code: ErrorCode.CLIENT_AUTH_INVALID_API_KEY } })
+                return
+              }
+            } else {
+              this.lastUsedMap.set(apiKeyDoc.id, Date.now())
             }
-            this.lastUsedMap.set(apiKeyDoc.id, Date.now())
           } else if (project.requireApiKey) {
             send({ type: 'auth_response', payload: { success: false, whitelisted: false, error: ErrorMessages.CLIENT_AUTH_INVALID_API_KEY, code: ErrorCode.CLIENT_AUTH_INVALID_API_KEY } })
             return
