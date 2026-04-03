@@ -89,7 +89,7 @@
             <div role="tablist" class="tabs tabs-lifted tabs-primary mt-4">
               <button @click="activeTab = 'envs'" role="tab" class="tab" :class="{ 'tab-active': activeTab === 'envs' }">Envs</button>
               <button @click="activeTab = 'keys'" role="tab" class="tab" :class="{ 'tab-active': activeTab === 'keys' }">API Keys</button>
-              <button @click="activeTab = 'whitelist'" role="tab" class="tab" :class="{ 'tab-active': activeTab === 'whitelist' }">Whitelist</button>
+              <button v-if="fingerprintVerification" @click="activeTab = 'whitelist'" role="tab" class="tab" :class="{ 'tab-active': activeTab === 'whitelist' }">Whitelist</button>
               <button @click="activeTab = 'settings'" role="tab" class="tab" :class="{ 'tab-active': activeTab === 'settings' }">Settings</button>
             </div>
 
@@ -178,6 +178,12 @@
               <div class="mt-4 space-y-4">
                 <p class="text-sm text-base-content/70">Database type: <strong class="mono">{{ activeDb }}</strong></p>
                 <p class="text-sm text-base-content/70">Server PK: <strong v-if="pkVerified" class="text-success">Loaded</strong><span v-else class="text-warning">Needs input</span></p>
+                <div class="divider my-2"></div>
+                <label class="label cursor-pointer gap-4">
+                  <span class="label-text font-semibold">Fingerprint verification</span>
+                  <input type="checkbox" v-model="fingerprintVerification" @change="updateFpVerification" class="toggle toggle-primary">
+                </label>
+                <p class="text-xs text-base-content/50">When disabled, API key is the only auth factor. Whitelist tab is hidden.</p>
               </div>
             </template>
 
@@ -235,6 +241,7 @@
 
         const whitelist = ref([])
         const wlForm = ref({ fingerprint: '' })
+        const fingerprintVerification = ref(true)
 
         const pendingNotifications = ref([])
         const toastMsg = ref('')
@@ -294,7 +301,13 @@
           envs.value = await api('/envs/project/' + selectedProject.value.id)
           apiKeys.value = await api('/apikeys/project/' + selectedProject.value.id)
           whitelist.value = await api('/whitelist/project/' + selectedProject.value.id)
+          fingerprintVerification.value = selectedProject.value.fingerprintVerification !== false
           autoAcceptApiKey.value = false
+        }
+
+        async function updateFpVerification() {
+          await api('/projects/' + selectedProject.value.id, { method: 'PUT', body: JSON.stringify({ fingerprintVerification: fingerprintVerification.value }) })
+          notify('Fingerprint verification ' + (fingerprintVerification.value ? 'enabled' : 'disabled'))
         }
 
         async function saveEnv() {
@@ -359,9 +372,9 @@
           pkStatus, existing, generatedMnemonic, submittedMnemonic, pkError, pkSubmitting, pkVerified,
           activeDb, projects, newProjectName, selectedProject, activeTab,
           envs, envForm, envExists, apiKeys, newKeyTtl, lastCreatedKey, autoAcceptApiKey,
-          whitelist, wlForm, pendingNotifications, toastMsg,
+          whitelist, wlForm, pendingNotifications, toastMsg, fingerprintVerification,
           loadProjects, createProject, deleteProject, selectProject,
-          submitPk, saveEnv, deleteEnv, copyEnvValue, createApiKey, revokeKey,
+          submitPk, saveEnv, deleteEnv, copyEnvValue, createApiKey, revokeKey, updateFpVerification,
           addWhitelist, approveWhitelist, rejectWhitelist, deleteWhitelist,
           approveNotification, rejectNotification
         }
