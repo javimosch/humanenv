@@ -20,6 +20,12 @@ export function createProjectsRouter(db: IDatabaseProvider, pk: PkManager): Rout
     res.status(201).json({ id: result.id })
   })
 
+  router.put('/:id', async (req, res) => {
+    const { fingerprintVerification } = req.body || {}
+    await db.updateProject(req.params.id, { fingerprintVerification })
+    res.json({ ok: true })
+  })
+
   router.delete('/:id', async (req, res) => {
     await db.deleteProject(req.params.id)
     res.json({ ok: true })
