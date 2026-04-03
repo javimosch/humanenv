@@ -4,9 +4,10 @@ export interface IDatabaseProvider {
   
   // Project CRUD
   createProject(name: string): Promise<{ id: string }>
-  getProject(name: string): Promise<{ id: string; name: string; createdAt: number } | null>
+  getProject(name: string): Promise<{ id: string; name: string; createdAt: number; fingerprintVerification: boolean } | null>
   listProjects(): Promise<Array<{ id: string; name: string; createdAt: number }>>
   deleteProject(id: string): Promise<void>
+  updateProject(id: string, data: { fingerprintVerification?: boolean }): Promise<void>
   
   // Env CRUD
   createEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean): Promise<{ id: string }>
