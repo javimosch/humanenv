@@ -12,6 +12,8 @@ export class WsRouter {
   private adminClients = new Set<WebSocket>()
   private clientSessions = new Map<WebSocket, { projectName: string; fingerprint: string; authenticated: boolean }>()
   private autoAcceptApiKey = false
+  private lastUsedMap = new Map<string, number>()
+  private lastUsedFlushInterval: ReturnType<typeof setInterval>
 
   constructor(
     private server: any,
@@ -20,6 +22,21 @@ export class WsRouter {
   ) {
     this.wss = new WebSocketServer({ server, path: '/ws' })
     this.wss.on('connection', this.onConnection.bind(this))
+    this.lastUsedFlushInterval = setInterval(() => this.flushLastUsed(), 60_000)
+  }
+
+  async shutdown(): Promise<void> {
+    clearInterval(this.lastUsedFlushInterval)
+    await this.flushLastUsed()
+  }
+
+  private async flushLastUsed(): Promise<void> {
+    if (this.lastUsedMap.size === 0) return
+    const batch = new Map(this.lastUsedMap)
+    this.lastUsedMap.clear()
+    for (const [id, ts] of batch) {
+      try { await this.db.updateApiKeyLastUsed(id, ts) } catch {}
+    }
   }
 
   /** Register admin UI WS clients */
@@ -125,6 +142,10 @@ export class WsRouter {
               send({ type: 'auth_response', payload: { success: false, whitelisted: false, error: ErrorMessages.CLIENT_AUTH_INVALID_API_KEY, code: ErrorCode.CLIENT_AUTH_INVALID_API_KEY } })
               return
             }
+            this.lastUsedMap.set(apiKeyDoc.id, Date.now())
+          } else if (project.requireApiKey) {
+            send({ type: 'auth_response', payload: { success: false, whitelisted: false, error: ErrorMessages.CLIENT_AUTH_INVALID_API_KEY, code: ErrorCode.CLIENT_AUTH_INVALID_API_KEY } })
+            return
           }
 
           let wl = await this.db.getWhitelistEntry(project.id, fingerprint)
