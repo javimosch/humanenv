@@ -102,6 +102,9 @@
                   <label class="label cursor-pointer gap-2"><span class="label-text text-xs">api-mode-only</span><input type="checkbox" v-model="envForm.apiModeOnly" class="toggle toggle-sm toggle-primary"></label>
                   <button @click="saveEnv" class="btn btn-primary btn-sm">{{ envExists ? 'Update' : 'Save' }}</button>
                 </div>
+                <div class="flex gap-2 mb-2">
+                  <button @click="openEnvModal" class="btn btn-secondary btn-sm">View as .env</button>
+                </div>
                 <table class="table table-xs">
                   <thead><tr><th>Key</th><th>api-mode-only</th><th>Created</th><th></th></tr></thead>
                   <tbody>
@@ -231,6 +234,19 @@
           </div>
         </div>
       </div>
+
+      <!-- .env Modal -->
+      <div v-show="envModalVisible" class="fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/50" @click="envModalOpen = false"></div>
+        <div class="relative bg-base-100 p-6 rounded-lg shadow-xl max-w-2xl w-full mx-4">
+          <h3 class="font-bold text-lg mb-4">.env Content</h3>
+          <p class="text-sm text-base-content/70 mb-2">Select all (Ctrl+A) and copy (Ctrl+C)</p>
+          <textarea class="textarea textarea-bordered w-full h-96 mono font-mono text-sm" v-model="envModalContent" readonly></textarea>
+          <div class="mt-4 flex justify-end">
+            <button @click="envModalOpen = false" class="btn">Close</button>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 
@@ -255,6 +271,8 @@
 
         const envs = ref([])
         const envForm = ref({ key: '', value: '', apiModeOnly: false })
+        const envModalOpen = ref(false)
+        const envModalContent = ref('')
 
         const apiKeys = ref([])
         const newKeyName = ref('')
@@ -277,8 +295,13 @@
 
         const envExists = computed(() => envs.value.some(e => e.key === envForm.value.key))
 
-        function api(path, opts = {}) {
-          return fetch('/api' + path, { headers: { 'Content-Type': 'application/json' }, ...opts }).then(r => r.json())
+        async function api(path, opts = {}) {
+          const response = await fetch('/api' + path, { headers: { 'Content-Type': 'application/json' }, ...opts })
+          if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(`API error ${response.status}: ${errorText}`)
+          }
+          return response.json()
         }
 
         function connectAdminWs() {
@@ -369,9 +392,29 @@
         }
         async function deleteEnv(key) { await api('/envs/project/' + selectedProject.value.id + '/' + encodeURIComponent(key), { method: 'DELETE' }); await loadProjectData() }
         async function copyEnvValue(key) {
-          const data = await api('/envs/project/' + selectedProject.value.id + '/' + encodeURIComponent(key))
-          await navigator.clipboard.writeText(data.value)
-          notify('Copied ' + key)
+          try {
+            const data = await api('/envs/project/' + selectedProject.value.id + '/' + encodeURIComponent(key))
+            await navigator.clipboard.writeText(data.value)
+            notify('Copied ' + key)
+          } catch (e) {
+            console.error('Failed to copy env:', e)
+            notify('Failed to copy: ' + e.message)
+          }
+        }
+
+        async function openEnvModal() {
+          if (!selectedProject.value || !selectedProject.value.id) {
+            notify('Please select a project first')
+            return
+          }
+          try {
+            const data = await api('/envs/project/' + selectedProject.value.id + '/all')
+            envModalContent.value = Object.entries(data).map(([key, value]) => `${key}=${value}`).join('\n')
+            envModalOpen.value = true
+          } catch (e) {
+            console.error('openEnvModal error:', e)
+            notify('Error: ' + e.message)
+          }
         }
 
         async function createApiKey() {
@@ -420,13 +463,15 @@
           temporalPk.value = tpRes.value === 'true'
         })
 
+        const envModalVisible = computed(() => pkVerified.value && envModalOpen.value)
+
         return {
           pkStatus, existing, generatedMnemonic, submittedMnemonic, pkError, pkSubmitting, pkVerified,
           activeDb, projects, newProjectName, selectedProject, activeTab,
-          envs, envForm, envExists, apiKeys, newKeyName, newKeyTtlValue, newKeyTtlUnit, lastCreatedKey, autoAcceptApiKey,
+          envs, envForm, envExists, envModalOpen, envModalContent, envModalVisible, apiKeys, newKeyName, newKeyTtlValue, newKeyTtlUnit, lastCreatedKey, autoAcceptApiKey,
           whitelist, wlForm, pendingNotifications, toastMsg, fingerprintVerification, requireApiKey, temporalPk,
           loadProjects, createProject, deleteProject, selectProject,
-          submitPk, saveEnv, deleteEnv, copyEnvValue, createApiKey, revokeKey, updateFpVerification, updateRequireApiKey, updateTemporalPk,
+          submitPk, saveEnv, deleteEnv, copyEnvValue, openEnvModal, createApiKey, revokeKey, updateFpVerification, updateRequireApiKey, updateTemporalPk,
           addWhitelist, approveWhitelist, rejectWhitelist, deleteWhitelist,
           approveNotification, rejectNotification, formatTtl
         }
