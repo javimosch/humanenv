@@ -45,9 +45,9 @@ export class MongoProvider implements IDatabaseProvider {
     return { id: doc.id }
   }
 
-  async getProject(name: string): Promise<{ id: string; name: string; createdAt: number } | null> {
+  async getProject(name: string): Promise<{ id: string; name: string; createdAt: number; fingerprintVerification: boolean } | null> {
     const doc = await this.col('projects').findOne({ name }) as any
-    return doc ? { id: doc.id, name: doc.name, createdAt: doc.createdAt } : null
+    return doc ? { id: doc.id, name: doc.name, createdAt: doc.createdAt, fingerprintVerification: doc.fingerprintVerification !== false } : null
   }
 
   async listProjects(): Promise<Array<{ id: string; name: string; createdAt: number }>> {
@@ -59,6 +59,12 @@ export class MongoProvider implements IDatabaseProvider {
     await this.col('envs').deleteMany({ projectId: id })
     await this.col('apiKeys').deleteMany({ projectId: id })
     await this.col('whitelist').deleteMany({ projectId: id })
+  }
+
+  async updateProject(id: string, data: { fingerprintVerification?: boolean }): Promise<void> {
+    const $set: any = {}
+    if (data.fingerprintVerification !== undefined) $set.fingerprintVerification = data.fingerprintVerification
+    if (Object.keys($set).length) await this.col('projects').updateOne({ id }, { $set })
   }
 
   async createEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean): Promise<{ id: string }> {
