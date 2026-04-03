@@ -377,8 +377,7 @@ program
       await cli.connect()
       const value = await cli.get(key)
       if (isJson) {
-        console.error(JSON.stringify({ success: true, code: 'ENV_RETRIEVED', key, hasValue: !!value }, null, 2))
-        process.stdout.write(value)
+        console.log(JSON.stringify({ success: true, code: 'ENV_RETRIEVED', key, hasValue: !!value, value }, null, 2))
       } else if (!process.stdout.isTTY) {
         process.stdout.write(value)
       } else {
@@ -430,7 +429,7 @@ program
       await cli.connect()
       await cli.set(key, value)
       if (isJson) {
-        console.error(JSON.stringify({ success: true, code: 'ENV_SET', key }, null, 2))
+        console.log(JSON.stringify({ success: true, code: 'ENV_SET', key }, null, 2))
       } else {
         console.log('Set', key)
       }
