@@ -30,9 +30,11 @@ export class PkManager {
   private pk: Buffer | null = null
   private mnemonic: string | null = null
   private temporalPkEnabled = false
+  private dbForTemporal: { listProjects(): Promise<Array<{ name: string }>> } | null = null
 
-  async bootstrap(storedHash: string | null, db: { getGlobalSetting(key: string): Promise<string | null> }): Promise<{ status: 'ready' | 'needs_input'; existing?: 'hash' | 'first' }> {
+  async bootstrap(storedHash: string | null, db: { getGlobalSetting(key: string): Promise<string | null>; listProjects(): Promise<Array<{ name: string }>> }): Promise<{ status: 'ready' | 'needs_input'; existing?: 'hash' | 'first' }> {
     this.temporalPkEnabled = await this.isTemporalPkEnabled(db)
+    this.dbForTemporal = db
 
     if (this.temporalPkEnabled) {
       const loadedFromFile = await this.loadTemporalPk(storedHash)
@@ -75,9 +77,9 @@ export class PkManager {
 
     try {
       const encrypted = fs.readFileSync(TEMPORAL_PK_FILE, 'utf8')
-      const dateSalt = getTodayDate()
+      const salt = await buildTemporalSalt(this.dbForTemporal!)
 
-      const tempPk = derivePkFromMnemonic(dateSalt)
+      const tempPk = derivePkFromMnemonic(salt)
       const decrypted = decryptWithPk(encrypted, tempPk as any, 'temporal-pk')
 
       if (!validateMnemonic(decrypted)) {
@@ -103,11 +105,11 @@ export class PkManager {
 
   async saveTemporalPk(): Promise<void> {
     if (!this.pk || !this.mnemonic) return
-    if (!this.temporalPkEnabled) return
+    if (!this.temporalPkEnabled || !this.dbForTemporal) return
 
     try {
-      const dateSalt = getTodayDate()
-      const tempPk = derivePkFromMnemonic(dateSalt)
+      const salt = await buildTemporalSalt(this.dbForTemporal)
+      const tempPk = derivePkFromMnemonic(salt)
       const encrypted = encryptWithPk(this.mnemonic, tempPk as any, 'temporal-pk')
       fs.writeFileSync(TEMPORAL_PK_FILE, encrypted, { mode: 0o600 })
       console.log('PK saved to temporal file for restart survival.')
