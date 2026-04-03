@@ -42,6 +42,17 @@ export function createEnvsRouter(db: IDatabaseProvider, pk: PkManager): Router {
     res.json(envs)
   })
 
+  // Bulk decrypt all envs for .env export - must be defined before /project/:projectId/:key
+  router.get('/project/:projectId/all', async (req, res) => {
+    const envs = await db.listEnvsWithValues(req.params.projectId)
+    const result: Record<string, string> = {}
+    for (const env of envs) {
+      const decrypted = pk.decrypt(env.encryptedValue, `${req.params.projectId}:${env.key}`)
+      result[env.key] = decrypted
+    }
+    res.json(result)
+  })
+
   router.get('/project/:projectId/:key', async (req, res) => {
     const key = decodeURIComponent(req.params.key)
     const env = await db.getEnv(req.params.projectId, key)
