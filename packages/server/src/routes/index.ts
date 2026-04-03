@@ -36,6 +36,14 @@ export function createEnvsRouter(db: IDatabaseProvider, pk: PkManager): Router {
     res.json(envs)
   })
 
+  router.get('/project/:projectId/:key', async (req, res) => {
+    const key = decodeURIComponent(req.params.key)
+    const env = await db.getEnv(req.params.projectId, key)
+    if (!env) return res.status(404).json({ error: 'Env not found' })
+    const decrypted = pk.decrypt(env.encryptedValue, `${req.params.projectId}:${key}`)
+    res.json({ key, value: decrypted })
+  })
+
   router.post('/project/:projectId', async (req, res) => {
     const { key, value, apiModeOnly } = req.body || {}
     if (!key || value === undefined) return res.status(400).json({ error: 'key and value required' })
