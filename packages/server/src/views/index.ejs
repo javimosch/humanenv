@@ -97,8 +97,8 @@
             <template v-if="activeTab === 'envs'">
               <div class="mt-4">
                 <div class="flex gap-2 mb-2">
-                  <input v-model="envForm.key" placeholder="KEY_NAME" class="input input-bordered input-sm mono flex-1">
-                  <input v-model="envForm.value" placeholder="value" class="input input-bordered input-sm flex-1">
+                  <input v-model="envForm.key" @input="envForm.key = envForm.key.replace(/\s/g, '_')" placeholder="KEY_NAME" class="input input-bordered input-sm mono flex-1">
+                  <input v-model="envForm.value" type="password" placeholder="value" class="input input-bordered input-sm flex-1">
                   <label class="label cursor-pointer gap-2"><span class="label-text text-xs">api-mode-only</span><input type="checkbox" v-model="envForm.apiModeOnly" class="toggle toggle-sm toggle-primary"></label>
                   <button @click="saveEnv" class="btn btn-primary btn-sm">{{ envExists ? 'Update' : 'Save' }}</button>
                 </div>
@@ -109,7 +109,7 @@
                       <td class="mono font-bold">{{ env.key }}</td>
                       <td><span v-if="env.apiModeOnly" class="badge badge-warning badge-sm">api-only</span><span v-else class="badge badge-ghost badge-sm">cli-ok</span></td>
                       <td>{{ new Date(env.createdAt).toLocaleString() }}</td>
-                      <td><button @click.stop="deleteEnv(env.key)" class="btn btn-error btn-xs">Delete</button></td>
+                      <td class="flex gap-1"><button @click.stop="copyEnvValue(env.key)" class="btn btn-info btn-xs">Copy</button><button @click.stop="deleteEnv(env.key)" class="btn btn-error btn-xs">Delete</button></td>
                     </tr>
                   </tbody>
                 </table>
@@ -185,6 +185,11 @@
         </div>
       </template>
 
+      <!-- Toast -->
+      <div v-if="toastMsg" class="toast toast-end toast-top">
+        <div class="alert alert-info shadow-lg"><span>{{ toastMsg }}</span></div>
+      </div>
+
       <!-- Real-time notification -->
       <div v-if="pendingNotifications.length" class="toast toast-end">
         <div v-for="n in pendingNotifications" :key="n.fingerprint" class="alert alert-warning shadow-lg">
@@ -232,6 +237,9 @@
         const wlForm = ref({ fingerprint: '' })
 
         const pendingNotifications = ref([])
+        const toastMsg = ref('')
+        let toastTimer = null
+        function notify(msg) { toastMsg.value = msg; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toastMsg.value = '' }, 2000) }
         const ws = ref(null)
 
         const envExists = computed(() => envs.value.some(e => e.key === envForm.value.key))
@@ -301,6 +309,11 @@
           await loadProjectData()
         }
         async function deleteEnv(key) { await api('/envs/project/' + selectedProject.value.id + '/' + encodeURIComponent(key), { method: 'DELETE' }); await loadProjectData() }
+        async function copyEnvValue(key) {
+          const data = await api('/envs/project/' + selectedProject.value.id + '/' + encodeURIComponent(key))
+          await navigator.clipboard.writeText(data.value)
+          notify('Copied ' + key)
+        }
 
         async function createApiKey() {
           const res = await api('/apikeys/project/' + selectedProject.value.id, { method: 'POST', body: JSON.stringify({ ttl: newKeyTtl.value || undefined }) })
@@ -346,9 +359,9 @@
           pkStatus, existing, generatedMnemonic, submittedMnemonic, pkError, pkSubmitting, pkVerified,
           activeDb, projects, newProjectName, selectedProject, activeTab,
           envs, envForm, envExists, apiKeys, newKeyTtl, lastCreatedKey, autoAcceptApiKey,
-          whitelist, wlForm, pendingNotifications,
+          whitelist, wlForm, pendingNotifications, toastMsg,
           loadProjects, createProject, deleteProject, selectProject,
-          submitPk, saveEnv, deleteEnv, createApiKey, revokeKey,
+          submitPk, saveEnv, deleteEnv, copyEnvValue, createApiKey, revokeKey,
           addWhitelist, approveWhitelist, rejectWhitelist, deleteWhitelist,
           approveNotification, rejectNotification
         }
