@@ -22,6 +22,7 @@ export class SqliteProvider implements IDatabaseProvider {
       CREATE TABLE IF NOT EXISTS projects (
         id TEXT PRIMARY KEY,
         name TEXT UNIQUE NOT NULL,
+        fingerprint_verification INTEGER NOT NULL DEFAULT 1,
         created_at INTEGER NOT NULL
       );
       CREATE TABLE IF NOT EXISTS envs (
@@ -58,6 +59,8 @@ export class SqliteProvider implements IDatabaseProvider {
         value TEXT NOT NULL
       );
     `)
+    // Migration: add fingerprint_verification column to existing databases
+    try { this.db.prepare('ALTER TABLE projects ADD COLUMN fingerprint_verification INTEGER NOT NULL DEFAULT 1').run() } catch {}
   }
 
   async createProject(name: string): Promise<{ id: string }> {
@@ -66,9 +69,9 @@ export class SqliteProvider implements IDatabaseProvider {
     return { id }
   }
 
-  async getProject(name: string): Promise<{ id: string; name: string; createdAt: number } | null> {
-    const row = this.db.prepare('SELECT id, name, created_at FROM projects WHERE name = ?').get(name) as any
-    return row ? { id: row.id, name: row.name, createdAt: row.created_at } : null
+  async getProject(name: string): Promise<{ id: string; name: string; createdAt: number; fingerprintVerification: boolean } | null> {
+    const row = this.db.prepare('SELECT id, name, fingerprint_verification, created_at FROM projects WHERE name = ?').get(name) as any
+    return row ? { id: row.id, name: row.name, createdAt: row.created_at, fingerprintVerification: !!row.fingerprint_verification } : null
   }
 
   async listProjects(): Promise<Array<{ id: string; name: string; createdAt: number }>> {
@@ -84,6 +87,12 @@ export class SqliteProvider implements IDatabaseProvider {
       this.db.prepare('DELETE FROM projects WHERE id = ?').run(id)
     })
     tx()
+  }
+
+  async updateProject(id: string, data: { fingerprintVerification?: boolean }): Promise<void> {
+    if (data.fingerprintVerification !== undefined) {
+      this.db.prepare('UPDATE projects SET fingerprint_verification = ? WHERE id = ?').run(data.fingerprintVerification ? 1 : 0, id)
+    }
   }
 
   async createEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean): Promise<{ id: string }> {
