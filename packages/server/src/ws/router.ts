@@ -221,39 +221,6 @@ export class WsRouter {
           break
         }
 
-        case 'generate_api_key': {
-          const { projectName } = msg.payload as any
-          // Notify admin
-          const reqId = crypto.randomUUID()
-          this.broadcastAdmin('apikey_gen_request', { reqId, clientFingerprint: authState?.fingerprint, projectName })
-
-          // Wait for admin response
-          const result = await new Promise<any>((resolve, reject) => {
-            const timeout = setTimeout(() => reject(new Error('Timeout waiting for admin approval')), 60_000)
-            this.pendingRequests.set(reqId, { resolve, reject, timeout })
-          })
-
-          if (result.approved) {
-            const project = await this.db.getProject(result.projectName || projectName)
-            if (project) {
-              const newKey = crypto.randomUUID()
-              const encrypted = this.pk.encrypt(newKey, `${project.id}:apikey:${newKey.slice(0, 8)}`)
-              await this.db.createApiKey(project.id, encrypted, newKey)
-              // Also auto-whitelist the fingerprint if not already approved
-              const wl = await this.db.getWhitelistEntry(project.id, authState!.fingerprint)
-              if (!wl || wl.status === 'pending') {
-                await this.db.createWhitelistEntry(project.id, authState!.fingerprint, 'approved')
-              }
-              send({ type: 'apikey_response', payload: { success: true, apiKey: newKey } })
-            } else {
-              send({ type: 'apikey_response', payload: { error: 'Project not found', code: ErrorCode.CLIENT_AUTH_INVALID_PROJECT_NAME } })
-            }
-          } else {
-            send({ type: 'apikey_response', payload: { error: 'API key generation rejected by admin', code: ErrorCode.CLIENT_AUTH_INVALID_API_KEY } })
-          }
-          break
-        }
-
         case 'ping':
           send({ type: 'pong' })
           break
