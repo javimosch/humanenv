@@ -151,9 +151,11 @@ export class WsRouter {
           const project = await this.db.getProject(authState!.projectName)
           if (!project) return send({ type: 'get_response', payload: { error: ErrorMessages.CLIENT_AUTH_INVALID_PROJECT_NAME, code: ErrorCode.CLIENT_AUTH_INVALID_PROJECT_NAME } })
 
-          const wl = await this.db.getWhitelistEntry(project.id, authState!.fingerprint)
-          if (wl?.status !== 'approved') {
-            return send({ type: 'get_response', payload: { error: ErrorMessages.CLIENT_AUTH_NOT_WHITELISTED, code: ErrorCode.CLIENT_AUTH_NOT_WHITELISTED } })
+          if (project.fingerprintVerification) {
+            const wl = await this.db.getWhitelistEntry(project.id, authState!.fingerprint)
+            if (wl?.status !== 'approved') {
+              return send({ type: 'get_response', payload: { error: ErrorMessages.CLIENT_AUTH_NOT_WHITELISTED, code: ErrorCode.CLIENT_AUTH_NOT_WHITELISTED } })
+            }
           }
 
           const env = await this.db.getEnv(project.id, key)
@@ -178,9 +180,11 @@ export class WsRouter {
           const project = await this.db.getProject(authState!.projectName)
           if (!project) return send({ type: 'set_response', payload: { error: ErrorMessages.CLIENT_AUTH_INVALID_PROJECT_NAME, code: ErrorCode.CLIENT_AUTH_INVALID_PROJECT_NAME } })
 
-          const wl = await this.db.getWhitelistEntry(project.id, authState!.fingerprint)
-          if (wl?.status !== 'approved') {
-            return send({ type: 'set_response', payload: { error: ErrorMessages.CLIENT_AUTH_NOT_WHITELISTED, code: ErrorCode.CLIENT_AUTH_NOT_WHITELISTED } })
+          if (project.fingerprintVerification) {
+            const wl = await this.db.getWhitelistEntry(project.id, authState!.fingerprint)
+            if (wl?.status !== 'approved') {
+              return send({ type: 'set_response', payload: { error: ErrorMessages.CLIENT_AUTH_NOT_WHITELISTED, code: ErrorCode.CLIENT_AUTH_NOT_WHITELISTED } })
+            }
           }
 
           const existing = await this.db.getEnv(project.id, key)
