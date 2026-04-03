@@ -206,20 +206,6 @@ export class HumanEnvClient {
     if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null }
   }
 
-  /** Send a generate_api_key request to the server */
-  async generateApiKey(): Promise<string> {
-    if (!this.connected || !this.authenticated) throw new Error('Client not authenticated')
-    return new Promise((resolve, reject) => {
-      const msgId = `genkey-${Date.now()}`
-      const timeout = setTimeout(() => {
-        this.pending.delete(msgId)
-        reject(new Error('Timeout waiting for API key generation'))
-      }, 60000)
-      this.pending.set(msgId, { resolve: (v: any) => resolve(v.apiKey), reject, timeout })
-      this.ws?.send(JSON.stringify({ type: 'generate_api_key', payload: { projectName: this.config.projectName } }))
-    })
-  }
-
   /** Connect (creates fresh WS) and waits for auth response up to `timeoutMs`. Resolves silently on timeout. */
   async connectAndWaitForAuth(timeoutMs: number): Promise<void> {
     return new Promise((resolve) => {
