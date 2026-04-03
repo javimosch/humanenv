@@ -200,6 +200,12 @@
                   <input type="checkbox" v-model="requireApiKey" @change="updateRequireApiKey" class="toggle toggle-primary">
                 </label>
                 <p class="text-xs text-base-content/50">When enabled, clients must provide a valid API key. No anonymous access.</p>
+                <div class="divider my-2">GLOBAL</div>
+                <label class="label cursor-pointer gap-4">
+                  <span class="label-text font-semibold">Temporal PK (survive restarts)</span>
+                  <input type="checkbox" v-model="temporalPk" @change="updateTemporalPk" class="toggle toggle-primary">
+                </label>
+                <p class="text-xs text-base-content/50">Write PK to disk on shutdown to survive auto-restarts (systemd/docker). Encrypted with current date.</p>
               </div>
             </template>
 
@@ -261,6 +267,7 @@
         const wlForm = ref({ fingerprint: '' })
         const fingerprintVerification = ref(true)
         const requireApiKey = ref(false)
+        const temporalPk = ref(false)
 
         const pendingNotifications = ref([])
         const toastMsg = ref('')
@@ -335,6 +342,11 @@
           notify('Require API key ' + (requireApiKey.value ? 'enabled' : 'disabled'))
         }
 
+        async function updateTemporalPk() {
+          await api('/global/temporal-pk', { method: 'PUT', body: JSON.stringify({ value: temporalPk.value }) })
+          notify('Temporal PK ' + (temporalPk.value ? 'enabled' : 'disabled'))
+        }
+
         function formatTtl(ttl) {
           if (!ttl) return 'never'
           const units = { 60: 'min', 3600: 'hr', 86400: 'day', 2592000: 'mo' }
@@ -404,15 +416,17 @@
             await loadProjects()
             connectAdminWs()
           }
+          const tpRes = await api('/global/temporal-pk')
+          temporalPk.value = tpRes.value === 'true'
         })
 
         return {
           pkStatus, existing, generatedMnemonic, submittedMnemonic, pkError, pkSubmitting, pkVerified,
           activeDb, projects, newProjectName, selectedProject, activeTab,
           envs, envForm, envExists, apiKeys, newKeyName, newKeyTtlValue, newKeyTtlUnit, lastCreatedKey, autoAcceptApiKey,
-          whitelist, wlForm, pendingNotifications, toastMsg, fingerprintVerification, requireApiKey,
+          whitelist, wlForm, pendingNotifications, toastMsg, fingerprintVerification, requireApiKey, temporalPk,
           loadProjects, createProject, deleteProject, selectProject,
-          submitPk, saveEnv, deleteEnv, copyEnvValue, createApiKey, revokeKey, updateFpVerification, updateRequireApiKey,
+          submitPk, saveEnv, deleteEnv, copyEnvValue, createApiKey, revokeKey, updateFpVerification, updateRequireApiKey, updateTemporalPk,
           addWhitelist, approveWhitelist, rejectWhitelist, deleteWhitelist,
           approveNotification, rejectNotification, formatTtl
         }

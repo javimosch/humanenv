@@ -1,11 +1,46 @@
 import { derivePkFromMnemonic, hashPkForVerification, validateMnemonic, generateMnemonic, decryptWithPk, encryptWithPk, generateFingerprint } from 'humanenv-shared'
 import { HumanEnvError, ErrorCode } from 'humanenv-shared'
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
+
+const TEMPORAL_PK_FILE = path.join(process.env.DATA_DIR || path.join(os.homedir(), '.humanenv'), 'temporal-pk.dat')
+
+function getTodayDate(): string {
+  return new Date().toISOString().split('T')[0]
+}
+
+function sanitizeProjectName(name: string): string {
+  return name.replace(/[^a-z0-9]/gi, '').toLowerCase()
+}
+
+async function buildTemporalSalt(db: { listProjects(): Promise<Array<{ name: string }>> }): Promise<string> {
+  const date = getTodayDate().replace(/-/g, '')
+  try {
+    const projects = await db.listProjects()
+    if (projects.length === 0) return date
+    const names = projects.map(p => sanitizeProjectName(p.name)).sort().join('_')
+    return names ? `${date}_${names}` : date
+  } catch {
+    return date
+  }
+}
 
 export class PkManager {
   private pk: Buffer | null = null
   private mnemonic: string | null = null
+  private temporalPkEnabled = false
 
-  async bootstrap(storedHash: string | null): Promise<{ status: 'ready' | 'needs_input'; existing?: 'hash' | 'first' }> {
+  async bootstrap(storedHash: string | null, db: { getGlobalSetting(key: string): Promise<string | null> }): Promise<{ status: 'ready' | 'needs_input'; existing?: 'hash' | 'first' }> {
+    this.temporalPkEnabled = await this.isTemporalPkEnabled(db)
+
+    if (this.temporalPkEnabled) {
+      const loadedFromFile = await this.loadTemporalPk(storedHash)
+      if (loadedFromFile) {
+        return { status: 'ready', existing: storedHash ? 'hash' : 'first' }
+      }
+    }
+
     const envMnemonic = process.env.HUMANENV_MNEMONIC
     if (envMnemonic) {
       const trimmed = envMnemonic.trim()
@@ -27,6 +62,58 @@ export class PkManager {
     }
 
     return { status: 'needs_input', existing: 'hash' }
+  }
+
+  async isTemporalPkEnabled(db: { getGlobalSetting(key: string): Promise<string | null> }): Promise<boolean> {
+    if (process.env.HUMANENV_TEMPORAL_PK === 'true') return true
+    const stored = await db.getGlobalSetting('temporal-pk')
+    return stored === 'true'
+  }
+
+  private async loadTemporalPk(storedHash: string | null): Promise<boolean> {
+    if (!fs.existsSync(TEMPORAL_PK_FILE)) return false
+
+    try {
+      const encrypted = fs.readFileSync(TEMPORAL_PK_FILE, 'utf8')
+      const dateSalt = getTodayDate()
+
+      const tempPk = derivePkFromMnemonic(dateSalt)
+      const decrypted = decryptWithPk(encrypted, tempPk as any, 'temporal-pk')
+
+      if (!validateMnemonic(decrypted)) {
+        throw new Error('Invalid mnemonic in temporal file')
+      }
+
+      this.mnemonic = decrypted
+      this.pk = derivePkFromMnemonic(decrypted)
+      const derivedHash = hashPkForVerification(this.pk)
+      if (storedHash && derivedHash !== storedHash) {
+        console.warn('WARN: Derived PK hash does not match stored hash. Data may be unrecoverable.')
+      }
+
+      fs.unlinkSync(TEMPORAL_PK_FILE)
+      console.log('PK restored from temporal file.')
+      return true
+    } catch (e) {
+      try { fs.unlinkSync(TEMPORAL_PK_FILE) } catch {}
+      console.warn('Failed to load temporal PK, removing corrupted file:', e instanceof Error ? e.message : 'unknown')
+      return false
+    }
+  }
+
+  async saveTemporalPk(): Promise<void> {
+    if (!this.pk || !this.mnemonic) return
+    if (!this.temporalPkEnabled) return
+
+    try {
+      const dateSalt = getTodayDate()
+      const tempPk = derivePkFromMnemonic(dateSalt)
+      const encrypted = encryptWithPk(this.mnemonic, tempPk as any, 'temporal-pk')
+      fs.writeFileSync(TEMPORAL_PK_FILE, encrypted, { mode: 0o600 })
+      console.log('PK saved to temporal file for restart survival.')
+    } catch (e) {
+      console.warn('Failed to save temporal PK:', e instanceof Error ? e.message : 'unknown')
+    }
   }
 
   isReady(): boolean {

@@ -6,7 +6,7 @@ import os from 'os'
 import { PkManager } from './pk-manager'
 import { createDatabase } from './db'
 import { createBasicAuthMiddleware } from './auth'
-import { createProjectsRouter, createEnvsRouter, createApiKeysRouter, createWhitelistRouter } from './routes'
+import { createProjectsRouter, createEnvsRouter, createApiKeysRouter, createWhitelistRouter, createGlobalSettingsRouter } from './routes'
 import { WsRouter } from './ws/router'
 
 // ============================================================
@@ -26,7 +26,7 @@ const PORT = parseIntOr(
   3056
 )
 const BASIC_AUTH_ARG = process.argv.find(a => a.startsWith('--basicAuth'))
-const dataDir = path.join(os.homedir(), '.humanenv')
+const dataDir = process.env.DATA_DIR || path.join(os.homedir(), '.humanenv')
 const dbPath = path.join(dataDir, 'humanenv.db')
 
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true })
@@ -47,7 +47,7 @@ async function main() {
   // PK Manager
   const pk = new PkManager()
   const storedHash = await db.getPkHash()
-  const bootstrapResult = await pk.bootstrap(storedHash)
+  const bootstrapResult = await pk.bootstrap(storedHash, db)
 
   // App
   const app = express()
@@ -70,6 +70,7 @@ async function main() {
   app.use('/api/envs', createEnvsRouter(db, pk))
   app.use('/api/apikeys', createApiKeysRouter(db, pk))
   app.use('/api/whitelist', createWhitelistRouter(db))
+  app.use('/api/global', createGlobalSettingsRouter(db))
 
   // PK setup endpoints
   app.post('/api/pk/setup', async (req, res) => {
@@ -108,6 +109,21 @@ async function main() {
 
   app.set('view engine', 'ejs')
   app.set('views', path.join(__dirname, 'views'))
+
+  const shutdown = async (signal: string) => {
+    console.log(`\nReceived ${signal}, shutting down gracefully...`)
+    await pk.saveTemporalPk()
+    server.close(() => {
+      process.exit(0)
+    })
+    setTimeout(() => {
+      console.error('Forced exit after timeout')
+      process.exit(1)
+    }, 5000)
+  }
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
 
   // Start
   server.listen(PORT, () => {
