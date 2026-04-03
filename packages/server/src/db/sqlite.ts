@@ -125,6 +125,11 @@ export class SqliteProvider implements IDatabaseProvider {
     return rows.map(r => ({ id: r.id, key: r.key, apiModeOnly: !!r.api_mode_only, createdAt: r.created_at }))
   }
 
+  async listEnvsWithValues(projectId: string): Promise<Array<{ id: string; key: string; encryptedValue: string; apiModeOnly: boolean; createdAt: number }>> {
+    const rows = this.db.prepare('SELECT id, key, encrypted_value, api_mode_only, created_at FROM envs WHERE project_id = ? ORDER BY key').all(projectId) as any[]
+    return rows.map(r => ({ id: r.id, key: r.key, encryptedValue: r.encrypted_value, apiModeOnly: !!r.api_mode_only, createdAt: r.created_at }))
+  }
+
   async updateEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean): Promise<void> {
     this.db.prepare('UPDATE envs SET encrypted_value = ?, api_mode_only = ? WHERE project_id = ? AND key = ?').run(
       encryptedValue, apiModeOnly ? 1 : 0, projectId, key

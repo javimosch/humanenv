@@ -13,6 +13,7 @@ export interface IDatabaseProvider {
   createEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean): Promise<{ id: string }>
   getEnv(projectId: string, key: string): Promise<{ encryptedValue: string; apiModeOnly: boolean } | null>
   listEnvs(projectId: string): Promise<Array<{ id: string; key: string; apiModeOnly: boolean; createdAt: number }>>
+  listEnvsWithValues(projectId: string): Promise<Array<{ id: string; key: string; encryptedValue: string; apiModeOnly: boolean; createdAt: number }>>
   updateEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean): Promise<void>
   deleteEnv(projectId: string, key: string): Promise<void>
   

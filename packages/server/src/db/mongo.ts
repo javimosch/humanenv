@@ -84,6 +84,11 @@ export class MongoProvider implements IDatabaseProvider {
   }
 
   async listEnvs(projectId: string): Promise<Array<{ id: string; key: string; apiModeOnly: boolean; createdAt: number }>> {
+    const docs = await this.col('envs').find({ projectId }).sort({ key: 1 }).toArray() as any[]
+    return docs.map(d => ({ id: d.id, key: d.key, apiModeOnly: d.apiModeOnly, createdAt: d.createdAt }))
+  }
+
+  async listEnvsWithValues(projectId: string): Promise<Array<{ id: string; key: string; encryptedValue: string; apiModeOnly: boolean; createdAt: number }>> {
     return await this.col('envs').find({ projectId }).sort({ key: 1 }).toArray() as any
   }
 
