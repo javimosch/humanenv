@@ -30,7 +30,6 @@ if (wantsHelp && isJson) {
         { flags: '--server-url <url>', description: 'Server URL', required: false, optional: true, shorthand: 'su' },
         { flags: '--su <url>', description: 'Server URL (shorthand)', required: false, optional: true, shorthand: null },
         { flags: '--api-key <key>', description: 'API key (optional)', required: false, optional: true, shorthand: null },
-        { flags: '--generate-api-key', description: 'Request a new API key from the server', required: false, optional: false, shorthand: null },
         { flags: '-h, --help', description: 'Display help', required: false, optional: false, shorthand: 'h' }
       ],
       arguments: []
@@ -222,24 +221,6 @@ async function runAuth(opts) {
 
   writeCredentials({ projectName, serverUrl, apiKey: opts.apiKey || undefined })
 
-  // --- generate-api-key one-shot ---
-  if (opts.generateApiKey) {
-    const client = new HumanEnvClient({ serverUrl, projectName, projectApiKey: opts.apiKey || '', maxRetries: 1 })
-    try {
-      await client.connect()
-      const key = await client.generateApiKey()
-      if (isJson) console.error(errJson('API_KEY_GENERATED', 'API key generated.', null, { success: true, apiKey: key }))
-      else console.log('API key generated:', key)
-    } catch (e) {
-      const fingerprint = generateFingerprint()
-      failJson('GENERATE_API_KEY_FAILED', 
-        `API key generation failed: ${e.message}`,
-        'Ensure the server is running, the project exists, and an admin is online to approve.',
-        { fingerprint, projectName, serverUrl })
-    } finally { client.disconnect() }
-    return
-  }
-
   // --- normal auth ---
   let client = new HumanEnvClient({ serverUrl, projectName, projectApiKey: opts.apiKey || '', maxRetries: 1 })
   try {
@@ -253,7 +234,7 @@ async function runAuth(opts) {
     } else if (/project.*not.*found/i.test(e.message)) {
       hint = `Create the project first via the admin UI at ${serverUrl}`
     } else if (/api.*key.*invalid/i.test(e.message)) {
-      hint = 'Re-run auth with --generate-api-key to request a new key from the admin.'
+      hint = 'Verify your API key is correct or request a new one from the admin.'
     }
     failJson('AUTH_FAILED',
       `Auth failed: ${e.message}`, hint,
@@ -357,7 +338,6 @@ program
   .description('Authenticate with a HumanEnv server')
   .option(...nameOpt).option(...pnOpt).option(...urlOpt).option(...suOpt)
   .option('--api-key <key>', 'API key (optional)')
-  .option('--generate-api-key', 'Request a new API key from the server')
   .action(async o => { await runAuth(o) })
 
 program
@@ -403,7 +383,7 @@ program
       } else if (/timeout/i.test(e.message)) {
         hint = 'Server took too long to respond. Check network connectivity.'
       } else if (/invalid.*api.*key/i.test(e.message)) {
-        hint = 'Your API key may have expired. Run humanenv auth --generate-api-key for a new one.'
+        hint = 'Your API key may have expired. Contact the admin for a new one.'
       }
 
       failJson(code, `Failed to get env: ${e.message}`, hint,

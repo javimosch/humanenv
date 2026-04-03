@@ -32,6 +32,43 @@ function ensureSkillFile() {
   }
 }
 
+function obfuscateKey(key) {
+  if (!key) return null
+  if (key.length <= 4) return '****'
+  return '****-' + key.slice(-4)
+}
+
+function printCredentials(creds, isJson) {
+  const obApiKey = obfuscateKey(creds?.apiKey)
+  const data = {
+    projectName: creds?.projectName || null,
+    serverUrl: creds?.serverUrl || 'http://localhost:3056',
+    apiKey: obApiKey,
+  }
+  if (isJson) {
+    console.log(JSON.stringify({
+      code: 'CREDENTIALS_STATUS',
+      configured: !!creds?.projectName,
+      ...data,
+      updateCommands: [
+        'humanenv auth --project-name <name>',
+        'humanenv auth --server-url <url>',
+        'humanenv auth --api-key <key>',
+      ]
+    }))
+  } else {
+    console.log('Current credentials:')
+    console.log('  projectName:', data.projectName || '(not set)')
+    console.log('  serverUrl:', data.serverUrl)
+    console.log('  api-key:', data.apiKey || '(none)')
+    console.log('')
+    console.log('To update:')
+    console.log('  humanenv auth --project-name <name>')
+    console.log('  humanenv auth --server-url <url>')
+    console.log('  humanenv auth --api-key <key>')
+  }
+}
+
 // ============================================================
 // Main entry: humanenv (no args)
 // ============================================================
@@ -39,22 +76,13 @@ function ensureSkillFile() {
 program
   .action(() => {
     ensureSkillFile()
+    const creds = readCredentials()
     if (!process.stdout.isTTY) {
-      // Non-TTY: output skill content for agents
       const skillPath = path.join(process.cwd(), '.agents', 'skills', 'humanenv-usage', 'SKILL.md')
       console.log(fs.readFileSync(skillPath, 'utf8'))
-    } else {
-      // TTY: show human-friendly help
-      console.log('HumanEnv - Secure environment variable injection')
-      console.log('')
-      console.log('Usage:')
-      console.log('  humanenv auth --project-name <name> --server-url <url> [--api-key <key>]')
-      console.log('  humanenv auth --project-name <name> --server-url <url> --generate-api-key')
-      console.log('  humanenv get <key>')
-      console.log('  humanenv set <key> <value>')
-      console.log('  humanenv server [--port 3056] [--basicAuth]')
       console.log('')
     }
+    printCredentials(creds, !process.stdout.isTTY)
   })
 
 // ============================================================
@@ -66,7 +94,6 @@ program
   .option('--project-name <name>')
   .option('--server-url <url>')
   .option('--api-key <key>')
-  .option('--generate-api-key', false)
   .action(async (opts) => {
     ensureSkillFile()
     if (!opts.projectName || !opts.serverUrl) {
@@ -81,47 +108,8 @@ program
     }
     writeCredentials(creds)
 
-    if (opts.generateApiKey) {
-      const { HumanEnvClient } = require('../ws-manager')
-      const client = new HumanEnvClient({
-        serverUrl: opts.serverUrl,
-        projectName: opts.projectName,
-        projectApiKey: opts.apiKey || '',
-        maxRetries: 3,
-      })
-
-      try {
-        await client.connect()
-        const result = await new Promise((resolve, reject) => {
-          client.disconnect()
-          // For CLI generate-api-key, we use a simple HTTP call instead
-          // since WS API key generation is complex
-          resolve(null)
-        })
-        console.log('API key generation request sent. Admin must approve in dashboard.')
-      } catch (e) {
-        console.error('Failed to connect:', e.message)
-        process.exit(1)
-      }
-    } else {
-      // Verify credentials by connecting
-      const { HumanEnvClient } = require('../ws-manager')
-      const client = new HumanEnvClient({
-        serverUrl: opts.serverUrl,
-        projectName: opts.projectName,
-        projectApiKey: opts.apiKey || '',
-        maxRetries: 3,
-      })
-
-      try {
-        await client.connect()
-        console.log('Authenticated successfully.')
-        client.disconnect()
-      } catch (e) {
-        console.error('Auth failed:', e.message)
-        process.exit(1)
-      }
-    }
+    // Verify credentials by connecting
+    const { HumanEnvClient } = require('../ws-manager')
 
     console.log('Credentials stored in', path.join(CREDENTIALS_DIR, 'credentials.json'))
   })

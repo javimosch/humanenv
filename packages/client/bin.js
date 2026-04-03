@@ -69,7 +69,6 @@ program
       console.log('')
       console.log('Usage:')
       console.log('  humanenv auth --project-name <name> --server-url <url> [--api-key <key>]')
-      console.log('  humanenv auth --project-name <name> --server-url <url> --generate-api-key')
       console.log('  humanenv get <key>')
       console.log('  humanenv set <key> <value>')
       console.log('  humanenv server [--port 3056] [--basicAuth]')
@@ -82,7 +81,6 @@ program
   .option('--project-name <name>')
   .option('--server-url <url>')
   .option('--api-key <key>')
-  .option('--generate-api-key', false)
   .action(async (opts) => {
     ensureSkillFile()
     if (!opts.projectName || !opts.serverUrl) {
@@ -91,18 +89,14 @@ program
     }
     const creds = { projectName: opts.projectName, serverUrl: opts.serverUrl, apiKey: opts.apiKey || undefined }
     writeCredentials(creds)
-    if (opts.generateApiKey) {
-      console.log('API key generation request sent. Admin must approve in dashboard.')
-    } else {
-      try {
-        const client = new HumanEnvClient({ serverUrl: opts.serverUrl, projectName: opts.projectName, projectApiKey: opts.apiKey || '', maxRetries: 3 })
-        await client.connect()
-        console.log('Authenticated successfully.')
-        client.disconnect()
-      } catch (e) {
-        console.error('Auth failed:', e.message)
-        process.exit(1)
-      }
+    try {
+      const client = new HumanEnvClient({ serverUrl: opts.serverUrl, projectName: opts.projectName, projectApiKey: opts.apiKey || '', maxRetries: 3 })
+      await client.connect()
+      console.log('Authenticated successfully.')
+      client.disconnect()
+    } catch (e) {
+      console.error('Auth failed:', e.message)
+      process.exit(1)
     }
     console.log('Credentials stored in', path.join(CREDENTIALS_DIR, 'credentials.json'))
   })
