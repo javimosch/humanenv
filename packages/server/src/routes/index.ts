@@ -122,3 +122,21 @@ export function createWhitelistRouter(db: IDatabaseProvider): Router {
 
   return router
 }
+
+export function createGlobalSettingsRouter(db: IDatabaseProvider): Router {
+  const router = Router()
+
+  router.get('/:key', async (req, res) => {
+    const value = await db.getGlobalSetting(req.params.key)
+    res.json({ value })
+  })
+
+  router.put('/:key', async (req, res) => {
+    const { value } = req.body || {}
+    if (value === undefined) return res.status(400).json({ error: 'value required' })
+    await db.storeGlobalSetting(req.params.key, String(value))
+    res.json({ ok: true })
+  })
+
+  return router
+}

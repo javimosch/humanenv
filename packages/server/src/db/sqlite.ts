@@ -204,4 +204,13 @@ export class SqliteProvider implements IDatabaseProvider {
     const row = this.db.prepare('SELECT value FROM server_config WHERE key = ?').get('pk_hash') as { value: string } | undefined
     return row?.value ?? null
   }
+
+  async storeGlobalSetting(key: string, value: string): Promise<void> {
+    this.db.prepare('INSERT OR REPLACE INTO server_config (key, value) VALUES (?, ?)').run(key, value)
+  }
+
+  async getGlobalSetting(key: string): Promise<string | null> {
+    const row = this.db.prepare('SELECT value FROM server_config WHERE key = ?').get(key) as { value: string } | undefined
+    return row?.value ?? null
+  }
 }

@@ -172,6 +172,19 @@ export class MongoProvider implements IDatabaseProvider {
     return doc?.value ?? null
   }
 
+  async storeGlobalSetting(key: string, value: string): Promise<void> {
+    await this.col('serverConfig').updateOne(
+      { key },
+      { $set: { key, value } },
+      { upsert: true }
+    )
+  }
+
+  async getGlobalSetting(key: string): Promise<string | null> {
+    const doc = await this.col('serverConfig').findOne({ key }) as any
+    return doc?.value ?? null
+  }
+
   private col(name: string) {
     if (!this.db) throw new HumanEnvError(ErrorCode.DB_OPERATION_FAILED, 'MongoDB not connected')
     return this.db.collection(name)

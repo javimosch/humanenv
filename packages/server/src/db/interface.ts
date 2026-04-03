@@ -32,4 +32,8 @@ export interface IDatabaseProvider {
   // PK verification (stores hash only)
   storePkHash(hash: string): Promise<void>
   getPkHash(): Promise<string | null>
+
+  // Global settings (key-value store)
+  storeGlobalSetting(key: string, value: string): Promise<void>
+  getGlobalSetting(key: string): Promise<string | null>
 }
