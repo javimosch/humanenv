@@ -32,6 +32,43 @@ function ensureSkillFile() {
   }
 }
 
+function obfuscateKey(key) {
+  if (!key) return null
+  if (key.length <= 4) return '****'
+  return '****-' + key.slice(-4)
+}
+
+function printCredentials(creds, isJson) {
+  const obApiKey = obfuscateKey(creds?.apiKey)
+  const data = {
+    projectName: creds?.projectName || null,
+    serverUrl: creds?.serverUrl || 'http://localhost:3056',
+    apiKey: obApiKey,
+  }
+  if (isJson) {
+    console.log(JSON.stringify({
+      code: 'CREDENTIALS_STATUS',
+      configured: !!creds?.projectName,
+      ...data,
+      updateCommands: [
+        'humanenv auth --project-name <name>',
+        'humanenv auth --server-url <url>',
+        'humanenv auth --api-key <key>',
+      ]
+    }))
+  } else {
+    console.log('Current credentials:')
+    console.log('  projectName:', data.projectName || '(not set)')
+    console.log('  serverUrl:', data.serverUrl)
+    console.log('  api-key:', data.apiKey || '(none)')
+    console.log('')
+    console.log('To update:')
+    console.log('  humanenv auth --project-name <name>')
+    console.log('  humanenv auth --server-url <url>')
+    console.log('  humanenv auth --api-key <key>')
+  }
+}
+
 // ============================================================
 // Main entry: humanenv (no args)
 // ============================================================
@@ -39,21 +76,13 @@ function ensureSkillFile() {
 program
   .action(() => {
     ensureSkillFile()
+    const creds = readCredentials()
     if (!process.stdout.isTTY) {
-      // Non-TTY: output skill content for agents
       const skillPath = path.join(process.cwd(), '.agents', 'skills', 'humanenv-usage', 'SKILL.md')
       console.log(fs.readFileSync(skillPath, 'utf8'))
-    } else {
-      // TTY: show human-friendly help
-      console.log('HumanEnv - Secure environment variable injection')
-      console.log('')
-      console.log('Usage:')
-      console.log('  humanenv auth --project-name <name> --server-url <url> [--api-key <key>]')
-      console.log('  humanenv get <key>')
-      console.log('  humanenv set <key> <value>')
-      console.log('  humanenv server [--port 3056] [--basicAuth]')
       console.log('')
     }
+    printCredentials(creds, !process.stdout.isTTY)
   })
 
 // ============================================================
@@ -67,22 +96,41 @@ program
   .option('--api-key <key>')
   .action(async (opts) => {
     ensureSkillFile()
-    if (!opts.projectName || !opts.serverUrl) {
-      console.error('Error: --project-name and --server-url required')
-      process.exit(1)
-    }
-
+    const existing = readCredentials() || {}
+    const serverUrl = opts.serverUrl || existing.serverUrl || 'http://localhost:3056'
     const creds = {
-      projectName: opts.projectName,
-      serverUrl: opts.serverUrl,
-      apiKey: opts.apiKey || undefined,
+      projectName: opts.projectName || existing.projectName,
+      serverUrl,
+      apiKey: opts.apiKey || existing.apiKey || undefined,
     }
     writeCredentials(creds)
 
-    // Verify credentials by connecting
-    const { HumanEnvClient } = require('humanenv/dist/ws-manager')
-
-    console.log('Credentials stored in', path.join(CREDENTIALS_DIR, 'credentials.json'))
+    const isJson = !process.stdout.isTTY
+    if (creds.projectName && creds.serverUrl) {
+      const { HumanEnvClient } = require('humanenv/dist/ws-manager')
+      const client = new HumanEnvClient({
+        serverUrl: creds.serverUrl,
+        projectName: creds.projectName,
+        projectApiKey: creds.apiKey || '',
+        maxRetries: 3,
+      })
+      try {
+        await client.connect()
+        if (isJson) {
+          console.log(JSON.stringify({ code: 'AUTH_OK', success: true, whitelisted: client.whitelistStatus === 'approved' }))
+        } else {
+          console.log('Authenticated successfully.')
+        }
+        client.disconnect()
+      } catch (e) {
+        if (isJson) {
+          console.log(JSON.stringify({ code: 'AUTH_FAILED', error: e.message }))
+        } else {
+          console.log('Auth warning:', e.message)
+        }
+      }
+    }
+    printCredentials(creds, isJson)
   })
 
 // ============================================================

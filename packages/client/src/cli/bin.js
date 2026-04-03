@@ -96,22 +96,41 @@ program
   .option('--api-key <key>')
   .action(async (opts) => {
     ensureSkillFile()
-    if (!opts.projectName || !opts.serverUrl) {
-      console.error('Error: --project-name and --server-url required')
-      process.exit(1)
-    }
-
+    const existing = readCredentials() || {}
+    const serverUrl = opts.serverUrl || existing.serverUrl || 'http://localhost:3056'
     const creds = {
-      projectName: opts.projectName,
-      serverUrl: opts.serverUrl,
-      apiKey: opts.apiKey || undefined,
+      projectName: opts.projectName || existing.projectName,
+      serverUrl,
+      apiKey: opts.apiKey || existing.apiKey || undefined,
     }
     writeCredentials(creds)
 
-    // Verify credentials by connecting
-    const { HumanEnvClient } = require('../ws-manager')
-
-    console.log('Credentials stored in', path.join(CREDENTIALS_DIR, 'credentials.json'))
+    const isJson = !process.stdout.isTTY
+    if (creds.projectName && creds.serverUrl) {
+      const { HumanEnvClient } = require('../ws-manager')
+      const client = new HumanEnvClient({
+        serverUrl: creds.serverUrl,
+        projectName: creds.projectName,
+        projectApiKey: creds.apiKey || '',
+        maxRetries: 3,
+      })
+      try {
+        await client.connect()
+        if (isJson) {
+          console.log(JSON.stringify({ code: 'AUTH_OK', success: true, whitelisted: client.whitelistStatus === 'approved' }))
+        } else {
+          console.log('Authenticated successfully.')
+        }
+        client.disconnect()
+      } catch (e) {
+        if (isJson) {
+          console.log(JSON.stringify({ code: 'AUTH_FAILED', error: e.message }))
+        } else {
+          console.log('Auth warning:', e.message)
+        }
+      }
+    }
+    printCredentials(creds, isJson)
   })
 
 // ============================================================

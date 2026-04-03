@@ -114,55 +114,15 @@ if (!hasCmd && !wantsHelp) {
   ensureSkillFile()
   const sp = path.join(process.cwd(), '.agents', 'skills', 'humanenv-usage', 'SKILL.md')
   const creds = readCredentials()
-  const fp = generateFingerprint()
-  const adminUiWhitelistUrl = creds.serverUrl ? `${creds.serverUrl.replace(/\/$/, '')}/#/whitelist` : null
 
   if (!process.stdout.isTTY || isJson) {
-    // Non-TTY / --json: skill content + auth status JSON
     if (fs.existsSync(sp)) console.log(fs.readFileSync(sp, 'utf8'))
     console.log('')
-    if (creds.projectName && creds.serverUrl) {
-      console.error(JSON.stringify({
-        code: 'AUTH_STATUS', status: 'credentials_found',
-        fingerprint: fp, projectName: creds.projectName, serverUrl: creds.serverUrl,
-        adminUiWhitelistUrl: adminUiWhitelistUrl,
-        step: 'Run humanenv auth to connect, then ask the admin to whitelist your fingerprint in the dashboard.',
-        guidance: `Share this fingerprint with the admin or send them the whitelist URL: ${adminUiWhitelistUrl}`
-      }))
-    } else {
-      console.error(JSON.stringify({
-        code: 'NOT_AUTHENTICATED', fingerprint: fp,
-        step: 'Run: humanenv auth --project-name <name> --server-url <url>  (shorthand: --pn / --su)'
-      }))
-    }
+    printCredentials(creds, true)
   } else {
-    // TTY: fingerprint + guidance
     console.log('HumanEnv - Secure environment variable injection')
     console.log('')
-    console.log('Your fingerprint:', fp)
-    console.log('Share this with the project admin to whitelist.')
-    if (creds.serverUrl) {
-      console.log('Admin UI:', creds.serverUrl)
-      console.log('Whitelist page:', adminUiWhitelistUrl)
-    }
-    console.log('')
-    if (creds.projectName && creds.serverUrl) {
-      console.log('Credentials configured:')
-      console.log('  projectName:', creds.projectName)
-      console.log('  serverUrl:',   creds.serverUrl)
-      console.log('')
-      console.log('Next steps:')
-      console.log('  1. Run:  humanenv auth')
-      console.log('  2. Admin whitelists your fingerprint in the dashboard at', creds.serverUrl)
-      console.log('     Direct whitelist link:', adminUiWhitelistUrl)
-      console.log('  3. Start using:  humanenv get <key>')
-    } else {
-      console.log('Usage:')
-      console.log('  humanenv auth  --project-name <name> --server-url <url> [--api-key <key>]')
-      console.log('  humanenv get   <key>')
-      console.log('  humanenv set   <key> <value>')
-      console.log('  humanenv server [--port 3056] [--basicAuth]')
-    }
+    printCredentials(creds, false)
     console.log('')
     console.log('Aliases:')
     console.log('  --pn  short for --project-name')
@@ -198,6 +158,43 @@ function writeCredentials(d) {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 
+function obfuscateKey(key) {
+  if (!key) return null
+  if (key.length <= 4) return '****'
+  return '****-' + key.slice(-4)
+}
+
+function printCredentials(creds, jsonMode) {
+  const obApiKey = obfuscateKey(creds?.apiKey)
+  const data = {
+    projectName: creds?.projectName || null,
+    serverUrl: creds?.serverUrl || 'http://localhost:3056',
+    apiKey: obApiKey,
+  }
+  if (jsonMode) {
+    console.log(JSON.stringify({
+      code: 'CREDENTIALS_STATUS',
+      configured: !!creds?.projectName,
+      ...data,
+      updateCommands: [
+        'humanenv auth --project-name <name>',
+        'humanenv auth --server-url <url>',
+        'humanenv auth --api-key <key>',
+      ]
+    }))
+  } else {
+    console.log('Current credentials:')
+    console.log('  projectName:', data.projectName || '(not set)')
+    console.log('  serverUrl:', data.serverUrl)
+    console.log('  api-key:', data.apiKey || '(none)')
+    console.log('')
+    console.log('To update:')
+    console.log('  humanenv auth --project-name <name>')
+    console.log('  humanenv auth --server-url <url>')
+    console.log('  humanenv auth --api-key <key>')
+  }
+}
+
 const pName   = o => o.projectName || o.pn
 const pUrl    = o => o.serverUrl   || o.su
 const nameOpt = ['--project-name <name>', 'Project name']
@@ -210,19 +207,32 @@ const suOpt   = ['--su <url>',            'Server URL (shorthand)']
 // ==========================================================
 async function runAuth(opts) {
   ensureSkillFile()
-  const projectName = pName(opts)
-  const serverUrl   = pUrl(opts)
-  if (!projectName || !serverUrl) {
-    failJson('MISSING_ARGS', 
-      '--project-name and --server-url are required',
-      'Run: humanenv auth --project-name <name> --server-url <url>  (shorthand: --pn / --su)')
+  const existing = readCredentials() || {}
+  const serverUrl = pUrl(opts) || existing.serverUrl || 'http://localhost:3056'
+  const creds = {
+    projectName: pName(opts) || existing.projectName,
+    serverUrl,
+    apiKey: opts.apiKey || existing.apiKey || undefined,
+  }
+
+  if (!creds.projectName && !opts.projectName && !opts.serverUrl && !opts.apiKey) {
+    printCredentials(creds, isJson)
     return
   }
 
-  writeCredentials({ projectName, serverUrl, apiKey: opts.apiKey || undefined })
+  writeCredentials(creds)
 
-  // --- normal auth ---
-  let client = new HumanEnvClient({ serverUrl, projectName, projectApiKey: opts.apiKey || '', maxRetries: 1 })
+  if (!creds.projectName || !creds.serverUrl) {
+    if (isJson) {
+      console.log(JSON.stringify({ code: 'CREDENTIALS_UPDATED', ...creds }))
+    } else {
+      console.log('Credentials updated.')
+    }
+    printCredentials(creds, isJson)
+    return
+  }
+
+  let client = new HumanEnvClient({ serverUrl: creds.serverUrl, projectName: creds.projectName, projectApiKey: creds.apiKey || '', maxRetries: 1 })
   try {
     await client.connect()
   } catch (e) {
@@ -236,71 +246,32 @@ async function runAuth(opts) {
     } else if (/api.*key.*invalid/i.test(e.message)) {
       hint = 'Verify your API key is correct or request a new one from the admin.'
     }
-    failJson('AUTH_FAILED',
-      `Auth failed: ${e.message}`, hint,
-      { fingerprint, projectName, serverUrl, adminUiWhitelistUrl })
-  }
-
-  if (client.whitelistStatus === 'approved') {
     if (isJson) {
-      console.error(errJson('AUTH_OK', 'Authentication successful.', null, { success: true, whitelisted: true }))
+      console.log(JSON.stringify({ code: 'AUTH_FAILED', error: e.message, hint }))
     } else {
-      console.log('Authentication successful.')
+      console.log('Auth warning:', e.message)
     }
+    printCredentials(creds, isJson)
     if (client) client.disconnect()
     return
   }
 
-  // Not approved yet
-  const fingerprint = generateFingerprint()
-  const adminUiWhitelistUrl = `${serverUrl.replace(/\/$/, '')}/#/whitelist`
-
-  if (process.stdout.isTTY && !isJson) {
-    // TTY mode: poll every 1s until approved or 120s timeout
-    console.log('Auth OK, not whitelisted yet.')
-    console.log('Fingerprint:', fingerprint)
-    console.log('Waiting for admin approval... (120s timeout, Ctrl+C to abort)')
-    console.log('Admin whitelist URL:', adminUiWhitelistUrl)
-
-    let attempts = 0
-    while (attempts < 120) {
-      attempts++
-      await sleep(1000)
-      try {
-        if (client) client.disconnect()
-        await sleep(100)
-        client = new HumanEnvClient({ serverUrl, projectName, projectApiKey: opts.apiKey || '', maxRetries: 1 })
-        await client.connect()
-        if (client.whitelistStatus === 'approved') {
-          console.log('\nApproved. You can now use humanenv get/set.')
-          return
-        }
-      } catch { /* still pending, keep polling */ }
+  if (client.whitelistStatus === 'approved') {
+    if (isJson) {
+      console.log(JSON.stringify({ code: 'AUTH_OK', success: true, whitelisted: true }))
+    } else {
+      console.log('Authenticated successfully.')
     }
-
-    // Timeout
-    console.log('\nTimed out waiting for approval.')
-    console.log('To approve manually: open the admin UI at ' + serverUrl)
-    console.log('Direct whitelist page:', adminUiWhitelistUrl)
-    console.log('Then approve fingerprint:', fingerprint)
-    return
-  }
-
-  // Non-TTY / --json: report immediately, don't wait
-  if (isJson) {
-    console.error(errJson('AUTH_PENDING',
-      'Auth OK but not whitelisted yet.',
-      `Share this fingerprint with the admin to approve it.`,
-      { success: true, whitelisted: false, fingerprint, projectName, serverUrl, adminUiWhitelistUrl,
-        step: 'admin_must_approve_whitelist',
-        guidance: `Send the admin this whitelist URL: ${adminUiWhitelistUrl}` }))
+    if (client) client.disconnect()
   } else {
-    console.log('Auth OK, not whitelisted yet.')
-    console.log('Fingerprint:', fingerprint)
-    console.log('Admin whitelist URL:', adminUiWhitelistUrl)
-    console.log('Share this with the admin to approve it.')
+    if (isJson) {
+      console.log(JSON.stringify({ code: 'AUTH_PENDING', success: true, whitelisted: false }))
+    } else {
+      console.log('Authenticated, not whitelisted yet.')
+    }
   }
 
+  printCredentials(creds, isJson)
   if (client) client.disconnect()
 }
 
@@ -309,8 +280,8 @@ async function runAuth(opts) {
 // ==========================================================
 function resolveCreds(opts) {
   const st          = readCredentials()
+  const serverUrl   = pUrl(opts) || st.serverUrl || 'http://localhost:3056'
   const projectName = pName(opts) || st.projectName
-  const serverUrl   = pUrl(opts)  || st.serverUrl
 
   if (!projectName || !serverUrl) {
     failJson('NOT_AUTHENTICATED',
