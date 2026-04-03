@@ -119,19 +119,29 @@
             <!-- API Keys Tab -->
             <template v-if="activeTab === 'keys'">
               <div class="mt-4">
-                <div class="flex gap-2 mb-2 items-center">
-                  <input v-model="newKeyTtl" placeholder="TTL in seconds (optional)" type="number" class="input input-bordered input-sm w-48">
+                <div class="flex gap-2 mb-2 items-center flex-wrap">
+                  <input v-model="newKeyName" placeholder="Key name (optional)" class="input input-bordered input-sm w-40">
+                  <input v-model.number="newKeyTtlValue" type="number" min="1" placeholder="TTL" class="input input-bordered input-sm w-24">
+                  <select v-model="newKeyTtlUnit" class="select select-bordered select-sm w-28">
+                    <option value="">No expiry</option>
+                    <option value="60">Minutes</option>
+                    <option value="3600">Hours</option>
+                    <option value="86400">Days</option>
+                    <option value="2592000">Months</option>
+                  </select>
                   <button @click="createApiKey" class="btn btn-primary btn-sm">Generate Key</button>
                   <label class="label cursor-pointer gap-2 ml-4"><span class="label-text text-xs">Auto-accept client generation requests</span><input type="checkbox" v-model="autoAcceptApiKey" class="toggle toggle-sm toggle-primary"></label>
                 </div>
                 <p v-if="lastCreatedKey" class="text-success font-bold mono mt-2">Created: {{ lastCreatedKey }} <span class="text-xs text-base-content/50">(copy now, it will not be shown again)</span></p>
                 <table class="table table-xs mt-2">
-                  <thead><tr><th>Preview</th><th>TTL</th><th>Expires</th><th>Created</th><th></th></tr></thead>
+                  <thead><tr><th>Name</th><th>Preview</th><th>TTL</th><th>Expires</th><th>Last Used</th><th>Created</th><th></th></tr></thead>
                   <tbody>
                     <tr v-for="k in apiKeys" :key="k.id">
+                      <td class="text-xs">{{ k.name || '—' }}</td>
                       <td class="mono">{{ k.maskedPreview }}</td>
-                      <td>{{ k.ttl ? k.ttl + 's' : 'never' }}</td>
+                      <td>{{ formatTtl(k.ttl) }}</td>
                       <td>{{ k.expiresAt ? new Date(k.expiresAt).toLocaleString() : 'never' }}</td>
+                      <td>{{ k.lastUsed ? new Date(k.lastUsed).toLocaleString() : 'never' }}</td>
                       <td>{{ new Date(k.createdAt).toLocaleString() }}</td>
                       <td><button @click="revokeKey(k.id)" class="btn btn-error btn-xs">Revoke</button></td>
                     </tr>
@@ -184,6 +194,12 @@
                   <input type="checkbox" v-model="fingerprintVerification" @change="updateFpVerification" class="toggle toggle-primary">
                 </label>
                 <p class="text-xs text-base-content/50">When disabled, API key is the only auth factor. Whitelist tab is hidden.</p>
+                <div class="divider my-2"></div>
+                <label class="label cursor-pointer gap-4">
+                  <span class="label-text font-semibold">Require API key</span>
+                  <input type="checkbox" v-model="requireApiKey" @change="updateRequireApiKey" class="toggle toggle-primary">
+                </label>
+                <p class="text-xs text-base-content/50">When enabled, clients must provide a valid API key. No anonymous access.</p>
               </div>
             </template>
 
@@ -235,13 +251,16 @@
         const envForm = ref({ key: '', value: '', apiModeOnly: false })
 
         const apiKeys = ref([])
-        const newKeyTtl = ref(undefined)
+        const newKeyName = ref('')
+        const newKeyTtlValue = ref(undefined)
+        const newKeyTtlUnit = ref('')
         const lastCreatedKey = ref('')
         const autoAcceptApiKey = ref(false)
 
         const whitelist = ref([])
         const wlForm = ref({ fingerprint: '' })
         const fingerprintVerification = ref(true)
+        const requireApiKey = ref(false)
 
         const pendingNotifications = ref([])
         const toastMsg = ref('')
@@ -302,12 +321,27 @@
           apiKeys.value = await api('/apikeys/project/' + selectedProject.value.id)
           whitelist.value = await api('/whitelist/project/' + selectedProject.value.id)
           fingerprintVerification.value = selectedProject.value.fingerprintVerification !== false
+          requireApiKey.value = !!selectedProject.value.requireApiKey
           autoAcceptApiKey.value = false
         }
 
         async function updateFpVerification() {
           await api('/projects/' + selectedProject.value.id, { method: 'PUT', body: JSON.stringify({ fingerprintVerification: fingerprintVerification.value }) })
           notify('Fingerprint verification ' + (fingerprintVerification.value ? 'enabled' : 'disabled'))
+        }
+
+        async function updateRequireApiKey() {
+          await api('/projects/' + selectedProject.value.id, { method: 'PUT', body: JSON.stringify({ requireApiKey: requireApiKey.value }) })
+          notify('Require API key ' + (requireApiKey.value ? 'enabled' : 'disabled'))
+        }
+
+        function formatTtl(ttl) {
+          if (!ttl) return 'never'
+          const units = { 60: 'min', 3600: 'hr', 86400: 'day', 2592000: 'mo' }
+          for (const [secs, label] of Object.entries(units).sort((a, b) => b[0] - a[0])) {
+            if (ttl % Number(secs) === 0) return (ttl / Number(secs)) + ' ' + label + (ttl / Number(secs) > 1 ? 's' : '')
+          }
+          return ttl + 's'
         }
 
         async function saveEnv() {
@@ -329,8 +363,12 @@
         }
 
         async function createApiKey() {
-          const res = await api('/apikeys/project/' + selectedProject.value.id, { method: 'POST', body: JSON.stringify({ ttl: newKeyTtl.value || undefined }) })
+          const ttl = newKeyTtlValue.value && newKeyTtlUnit.value ? newKeyTtlValue.value * Number(newKeyTtlUnit.value) : undefined
+          const res = await api('/apikeys/project/' + selectedProject.value.id, { method: 'POST', body: JSON.stringify({ ttl, name: newKeyName.value || undefined }) })
           lastCreatedKey.value = res.plainKey
+          newKeyName.value = ''
+          newKeyTtlValue.value = undefined
+          newKeyTtlUnit.value = ''
           await loadProjectData()
         }
         async function revokeKey(id) { await api('/apikeys/project/' + selectedProject.value.id + '/' + id, { method: 'DELETE' }); await loadProjectData() }
@@ -371,12 +409,12 @@
         return {
           pkStatus, existing, generatedMnemonic, submittedMnemonic, pkError, pkSubmitting, pkVerified,
           activeDb, projects, newProjectName, selectedProject, activeTab,
-          envs, envForm, envExists, apiKeys, newKeyTtl, lastCreatedKey, autoAcceptApiKey,
-          whitelist, wlForm, pendingNotifications, toastMsg, fingerprintVerification,
+          envs, envForm, envExists, apiKeys, newKeyName, newKeyTtlValue, newKeyTtlUnit, lastCreatedKey, autoAcceptApiKey,
+          whitelist, wlForm, pendingNotifications, toastMsg, fingerprintVerification, requireApiKey,
           loadProjects, createProject, deleteProject, selectProject,
-          submitPk, saveEnv, deleteEnv, copyEnvValue, createApiKey, revokeKey, updateFpVerification,
+          submitPk, saveEnv, deleteEnv, copyEnvValue, createApiKey, revokeKey, updateFpVerification, updateRequireApiKey,
           addWhitelist, approveWhitelist, rejectWhitelist, deleteWhitelist,
-          approveNotification, rejectNotification
+          approveNotification, rejectNotification, formatTtl
         }
       }
     }).mount('#app')

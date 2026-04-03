@@ -23,6 +23,7 @@ export class SqliteProvider implements IDatabaseProvider {
         id TEXT PRIMARY KEY,
         name TEXT UNIQUE NOT NULL,
         fingerprint_verification INTEGER NOT NULL DEFAULT 1,
+        require_api_key INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL
       );
       CREATE TABLE IF NOT EXISTS envs (
@@ -38,10 +39,12 @@ export class SqliteProvider implements IDatabaseProvider {
       CREATE TABLE IF NOT EXISTS api_keys (
         id TEXT PRIMARY KEY,
         project_id TEXT NOT NULL,
+        name TEXT,
         encrypted_value TEXT NOT NULL,
         lookup_hash TEXT UNIQUE NOT NULL,
         ttl INTEGER,
         expires_at INTEGER,
+        last_used INTEGER,
         created_at INTEGER NOT NULL,
         FOREIGN KEY(project_id) REFERENCES projects(id)
       );
@@ -61,6 +64,12 @@ export class SqliteProvider implements IDatabaseProvider {
     `)
     // Migration: add fingerprint_verification column to existing databases
     try { this.db.prepare('ALTER TABLE projects ADD COLUMN fingerprint_verification INTEGER NOT NULL DEFAULT 1').run() } catch {}
+    // Migration: add require_api_key column to existing databases
+    try { this.db.prepare('ALTER TABLE projects ADD COLUMN require_api_key INTEGER NOT NULL DEFAULT 0').run() } catch {}
+    // Migration: add name column to api_keys
+    try { this.db.prepare('ALTER TABLE api_keys ADD COLUMN name TEXT').run() } catch {}
+    // Migration: add last_used column to api_keys
+    try { this.db.prepare('ALTER TABLE api_keys ADD COLUMN last_used INTEGER').run() } catch {}
   }
 
   async createProject(name: string): Promise<{ id: string }> {
@@ -69,9 +78,9 @@ export class SqliteProvider implements IDatabaseProvider {
     return { id }
   }
 
-  async getProject(name: string): Promise<{ id: string; name: string; createdAt: number; fingerprintVerification: boolean } | null> {
-    const row = this.db.prepare('SELECT id, name, fingerprint_verification, created_at FROM projects WHERE name = ?').get(name) as any
-    return row ? { id: row.id, name: row.name, createdAt: row.created_at, fingerprintVerification: !!row.fingerprint_verification } : null
+  async getProject(name: string): Promise<{ id: string; name: string; createdAt: number; fingerprintVerification: boolean; requireApiKey: boolean } | null> {
+    const row = this.db.prepare('SELECT id, name, fingerprint_verification, require_api_key, created_at FROM projects WHERE name = ?').get(name) as any
+    return row ? { id: row.id, name: row.name, createdAt: row.created_at, fingerprintVerification: !!row.fingerprint_verification, requireApiKey: !!row.require_api_key } : null
   }
 
   async listProjects(): Promise<Array<{ id: string; name: string; createdAt: number }>> {
@@ -89,9 +98,12 @@ export class SqliteProvider implements IDatabaseProvider {
     tx()
   }
 
-  async updateProject(id: string, data: { fingerprintVerification?: boolean }): Promise<void> {
+  async updateProject(id: string, data: { fingerprintVerification?: boolean; requireApiKey?: boolean }): Promise<void> {
     if (data.fingerprintVerification !== undefined) {
       this.db.prepare('UPDATE projects SET fingerprint_verification = ? WHERE id = ?').run(data.fingerprintVerification ? 1 : 0, id)
+    }
+    if (data.requireApiKey !== undefined) {
+      this.db.prepare('UPDATE projects SET require_api_key = ? WHERE id = ?').run(data.requireApiKey ? 1 : 0, id)
     }
   }
 
@@ -123,12 +135,12 @@ export class SqliteProvider implements IDatabaseProvider {
     this.db.prepare('DELETE FROM envs WHERE project_id = ? AND key = ?').run(projectId, key)
   }
 
-  async createApiKey(projectId: string, encryptedValue: string, plainValue: string, ttl?: number): Promise<{ id: string }> {
+  async createApiKey(projectId: string, encryptedValue: string, plainValue: string, ttl?: number, name?: string): Promise<{ id: string }> {
     const id = crypto.randomUUID()
     const expiresAt = ttl ? Date.now() + ttl * 1000 : undefined
     const lookupHash = crypto.createHash('sha256').update(plainValue).digest('hex')
-    this.db.prepare('INSERT INTO api_keys (id, project_id, encrypted_value, lookup_hash, ttl, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
-      id, projectId, encryptedValue, lookupHash, ttl ?? null, expiresAt ?? null, Date.now()
+    this.db.prepare('INSERT INTO api_keys (id, project_id, name, encrypted_value, lookup_hash, ttl, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+      id, projectId, name ?? null, encryptedValue, lookupHash, ttl ?? null, expiresAt ?? null, Date.now()
     )
     return { id }
   }
@@ -141,19 +153,25 @@ export class SqliteProvider implements IDatabaseProvider {
     return { id: row.id, expiresAt: row.expires_at }
   }
 
-  async listApiKeys(projectId: string): Promise<Array<{ id: string; maskedPreview: string; ttl?: number; expiresAt?: number; createdAt: number }>> {
-    const rows = this.db.prepare('SELECT id, lookup_hash, ttl, expires_at, created_at FROM api_keys WHERE project_id = ? ORDER BY created_at DESC').all(projectId) as any[]
+  async listApiKeys(projectId: string): Promise<Array<{ id: string; maskedPreview: string; ttl?: number; expiresAt?: number; createdAt: number; name?: string; lastUsed?: number }>> {
+    const rows = this.db.prepare('SELECT id, name, lookup_hash, ttl, expires_at, last_used, created_at FROM api_keys WHERE project_id = ? ORDER BY created_at DESC').all(projectId) as any[]
     return rows.map(r => ({
       id: r.id,
+      name: r.name || undefined,
       maskedPreview: r.lookup_hash.slice(0, 8) + '...',
       ttl: r.ttl,
       expiresAt: r.expires_at,
+      lastUsed: r.last_used ?? undefined,
       createdAt: r.created_at,
     }))
   }
 
   async revokeApiKey(projectId: string, id: string): Promise<void> {
     this.db.prepare('DELETE FROM api_keys WHERE id = ? AND project_id = ?').run(id, projectId)
+  }
+
+  async updateApiKeyLastUsed(id: string, timestamp: number): Promise<void> {
+    this.db.prepare('UPDATE api_keys SET last_used = ? WHERE id = ?').run(timestamp, id)
   }
 
   async createWhitelistEntry(projectId: string, fingerprint: string, status: 'pending' | 'approved' | 'rejected'): Promise<{ id: string }> {

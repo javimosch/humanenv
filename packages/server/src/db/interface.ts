@@ -4,10 +4,10 @@ export interface IDatabaseProvider {
   
   // Project CRUD
   createProject(name: string): Promise<{ id: string }>
-  getProject(name: string): Promise<{ id: string; name: string; createdAt: number; fingerprintVerification: boolean } | null>
+  getProject(name: string): Promise<{ id: string; name: string; createdAt: number; fingerprintVerification: boolean; requireApiKey: boolean } | null>
   listProjects(): Promise<Array<{ id: string; name: string; createdAt: number }>>
   deleteProject(id: string): Promise<void>
-  updateProject(id: string, data: { fingerprintVerification?: boolean }): Promise<void>
+  updateProject(id: string, data: { fingerprintVerification?: boolean; requireApiKey?: boolean }): Promise<void>
   
   // Env CRUD
   createEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean): Promise<{ id: string }>
@@ -17,10 +17,11 @@ export interface IDatabaseProvider {
   deleteEnv(projectId: string, key: string): Promise<void>
   
   // API Key CRUD
-  createApiKey(projectId: string, encryptedValue: string, plainValue: string, ttl?: number): Promise<{ id: string }>
+  createApiKey(projectId: string, encryptedValue: string, plainValue: string, ttl?: number, name?: string): Promise<{ id: string }>
   getApiKey(projectId: string, plainValue: string): Promise<{ id: string; expiresAt?: number } | null>
-  listApiKeys(projectId: string): Promise<Array<{ id: string; maskedPreview: string; ttl?: number; expiresAt?: number; createdAt: number }>>
+  listApiKeys(projectId: string): Promise<Array<{ id: string; maskedPreview: string; ttl?: number; expiresAt?: number; createdAt: number; name?: string; lastUsed?: number }>>
   revokeApiKey(projectId: string, id: string): Promise<void>
+  updateApiKeyLastUsed(id: string, timestamp: number): Promise<void>
   
   // Whitelist CRUD
   createWhitelistEntry(projectId: string, fingerprint: string, status: 'pending' | 'approved' | 'rejected'): Promise<{ id: string }>

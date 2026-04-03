@@ -45,9 +45,9 @@ export class MongoProvider implements IDatabaseProvider {
     return { id: doc.id }
   }
 
-  async getProject(name: string): Promise<{ id: string; name: string; createdAt: number; fingerprintVerification: boolean } | null> {
+  async getProject(name: string): Promise<{ id: string; name: string; createdAt: number; fingerprintVerification: boolean; requireApiKey: boolean } | null> {
     const doc = await this.col('projects').findOne({ name }) as any
-    return doc ? { id: doc.id, name: doc.name, createdAt: doc.createdAt, fingerprintVerification: doc.fingerprintVerification !== false } : null
+    return doc ? { id: doc.id, name: doc.name, createdAt: doc.createdAt, fingerprintVerification: doc.fingerprintVerification !== false, requireApiKey: !!doc.requireApiKey } : null
   }
 
   async listProjects(): Promise<Array<{ id: string; name: string; createdAt: number }>> {
@@ -61,9 +61,10 @@ export class MongoProvider implements IDatabaseProvider {
     await this.col('whitelist').deleteMany({ projectId: id })
   }
 
-  async updateProject(id: string, data: { fingerprintVerification?: boolean }): Promise<void> {
+  async updateProject(id: string, data: { fingerprintVerification?: boolean; requireApiKey?: boolean }): Promise<void> {
     const $set: any = {}
     if (data.fingerprintVerification !== undefined) $set.fingerprintVerification = data.fingerprintVerification
+    if (data.requireApiKey !== undefined) $set.requireApiKey = data.requireApiKey
     if (Object.keys($set).length) await this.col('projects').updateOne({ id }, { $set })
   }
 
@@ -97,11 +98,11 @@ export class MongoProvider implements IDatabaseProvider {
     await this.col('envs').deleteOne({ projectId, key })
   }
 
-  async createApiKey(projectId: string, encryptedValue: string, plainValue: string, ttl?: number): Promise<{ id: string }> {
+  async createApiKey(projectId: string, encryptedValue: string, plainValue: string, ttl?: number, name?: string): Promise<{ id: string }> {
     const id = crypto.randomUUID()
     const expiresAt = ttl ? Date.now() + ttl * 1000 : undefined
     const lookupHash = crypto.createHash('sha256').update(plainValue).digest('hex')
-    const doc = { id, projectId, encryptedValue, lookupHash, ttl: ttl ?? null, expiresAt: expiresAt ?? null, createdAt: Date.now() }
+    const doc = { id, projectId, name: name ?? null, encryptedValue, lookupHash, ttl: ttl ?? null, expiresAt: expiresAt ?? null, createdAt: Date.now() }
     await this.col('apiKeys').insertOne(doc)
     return { id }
   }
@@ -114,19 +115,25 @@ export class MongoProvider implements IDatabaseProvider {
     return { id: doc.id, expiresAt: doc.expiresAt }
   }
 
-  async listApiKeys(projectId: string): Promise<Array<{ id: string; maskedPreview: string; ttl?: number; expiresAt?: number; createdAt: number }>> {
+  async listApiKeys(projectId: string): Promise<Array<{ id: string; maskedPreview: string; ttl?: number; expiresAt?: number; createdAt: number; name?: string; lastUsed?: number }>> {
     const docs = await this.col('apiKeys').find({ projectId }).sort({ createdAt: -1 }).toArray() as any[]
     return docs.map(d => ({
       id: d.id,
+      name: d.name || undefined,
       maskedPreview: d.lookupHash.slice(0, 8) + '...',
       ttl: d.ttl,
       expiresAt: d.expiresAt,
+      lastUsed: d.lastUsed ?? undefined,
       createdAt: d.createdAt,
     }))
   }
 
   async revokeApiKey(projectId: string, id: string): Promise<void> {
     await this.col('apiKeys').deleteOne({ id, projectId })
+  }
+
+  async updateApiKeyLastUsed(id: string, timestamp: number): Promise<void> {
+    await this.col('apiKeys').updateOne({ id }, { $set: { lastUsed: timestamp } })
   }
 
   async createWhitelistEntry(projectId: string, fingerprint: string, status: 'pending' | 'approved' | 'rejected'): Promise<{ id: string }> {

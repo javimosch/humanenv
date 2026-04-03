@@ -21,8 +21,8 @@ export function createProjectsRouter(db: IDatabaseProvider, pk: PkManager): Rout
   })
 
   router.put('/:id', async (req, res) => {
-    const { fingerprintVerification } = req.body || {}
-    await db.updateProject(req.params.id, { fingerprintVerification })
+    const { fingerprintVerification, requireApiKey } = req.body || {}
+    await db.updateProject(req.params.id, { fingerprintVerification, requireApiKey })
     res.json({ ok: true })
   })
 
@@ -83,10 +83,10 @@ export function createApiKeysRouter(db: IDatabaseProvider, pk: PkManager): Route
   })
 
   router.post('/project/:projectId', async (req, res) => {
-    const { plainKey, ttl } = req.body || {}
+    const { plainKey, ttl, name } = req.body || {}
     const keyToStore = plainKey || crypto.randomUUID()
     const encrypted = pk.encrypt(keyToStore, `${req.params.projectId}:apikey:${keyToStore.slice(0, 8)}`)
-    const result = await db.createApiKey(req.params.projectId, encrypted, keyToStore, ttl)
+    const result = await db.createApiKey(req.params.projectId, encrypted, keyToStore, ttl, name)
     res.status(201).json({ id: result.id, plainKey: keyToStore })
   })
 
