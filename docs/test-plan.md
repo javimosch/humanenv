@@ -1,6 +1,6 @@
 # HumanEnv Test Plan
 
-**Status:** 255/273 tests implemented (93%) across 21 test files
+**Status:** 292/310 tests implemented (94%) across 22 test files
 
 ---
 
@@ -17,6 +17,7 @@
 | 2 | server | `pk-manager-submit.test.ts` | 15 | ✅ |
 | 2 | server | `auth-middleware.test.ts` | 8 | ✅ |
 | 2 | server | `db-sqlite-basic.test.ts` | 19 | ✅ |
+| 2 | server | `db-mongo.test.ts` | 37 | ✅ |
 | 2 | server | `ws-router.test.ts` | 17 | ✅ |
 | 2 | server | `rest-routes.test.ts` | 20 | ✅ |
 | 2 | server | `routes-handlers-projects-envs.test.ts` | 17 | ✅ |
@@ -44,7 +45,7 @@
 | Phase | Scope | Count | Status |
 |-------|-------|-------|--------|
 | 1 | Shared (crypto, errors, fingerprint) | 62 | ✅ 100% |
-| 2 | Server (pk, auth, db, ws, routes, security) | 160 | ✅ 100% |
+| 2 | Server (pk, auth, db, ws, routes, security) | 197 | ✅ 100% |
 | 3-4 | REST + WebSocket integration | — | ✅ Covered by Phase 2 |
 | 5 | Client library | 34 | ✅ 100% |
 | 6 | CLI | 17 | ✅ 100% |
