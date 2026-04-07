@@ -1,12 +1,14 @@
-# humanenv Example App
+# humanenv Example
 
-Demonstrates secure secret retrieval with `humanenv` in Node.js using fingerprint whitelisting.
+> Retrieve secrets securely in Node.js. Copy-paste and run.
 
 ## Prerequisites
 
-- humanenv server running at `http://localhost:3056`
-- Project created in admin UI
-- Env vars set (e.g., `api_key`, `db_host`, `db_user`, `db_pass`)
+| Requirement | How |
+|------------|-----|
+| humanenv server running | `npx humanenv server --port 3056` |
+| Project created | Admin UI → http://localhost:3056 |
+| Secrets stored | Admin UI → select project → add env vars |
 
 ## Run
 
@@ -17,27 +19,39 @@ export HUMANENV_PROJECT_NAME=example-app
 npm start
 ```
 
-First run triggers a whitelist request. Approve it in the admin UI → Whitelist tab, then run again.
+First run: a whitelist request appears in Admin UI → Whitelist tab. Approve it, then run again.
 
-## Usage Pattern
+## Pattern: Retrieve, Use, Null
 
 ```javascript
-// Correct: retrieve, use, null
+import humanenv from 'humanenv'
+
+await humanenv.config({
+  serverUrl: 'http://localhost:3056',
+  projectName: 'example-app',
+})
+
+// ✅ Correct: single key, use immediately, null after
 let apiKey = await humanenv.get('api_key')
 callExternalService(apiKey)
 apiKey = null
 
-// WRONG: storing in process.env defeats the purpose
+// ✅ Correct: multiple keys
+let creds = await humanenv.get(['db_host', 'db_user', 'db_pass'])
+connectDB(creds.db_host, creds.db_user, creds.db_pass)
+creds = null
+
+// ❌ Wrong: storing in process.env defeats the purpose
 process.env.API_KEY = await humanenv.get('api_key')
 ```
 
-## API Key Auth (Alternative)
+## With API Key Auth
 
 ```javascript
-humanenv.config({
+await humanenv.config({
   serverUrl: 'http://localhost:3056',
   projectName: 'example-app',
-  projectApiKey: 'sk-xxx'
+  projectApiKey: 'sk-xxx',   // skips fingerprint approval
 })
 ```
 
@@ -55,9 +69,6 @@ humanenv.config({
 
 3. Updating a secret...
    Secret updated
-
-4. Retrieving updated secret...
-   example_key: example-value-1234567890
 
 Example completed successfully!
 ```
