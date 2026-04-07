@@ -1,77 +1,57 @@
-import { describe, it, beforeEach, mock } from 'node:test'
+import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert'
-import { HumanEnvClient } from '../src/ws-manager.ts'
 import { ErrorCode } from 'humanenv-shared'
-
-// Mock WebSocket for testing message handling
-class MockWebSocket {
-  readyState = 1 // OPEN
-  handlers: Record<string, Array<(data: any) => void>> = {}
-  sentMessages: any[] = []
-
-  on(event: string, handler: (data: any) => void) {
-    if (!this.handlers[event]) {
-      this.handlers[event] = []
-    }
-    this.handlers[event].push(handler)
-  }
-
-  send(data: any) {
-    this.sentMessages.push(data)
-  }
-
-  close() {}
-
-  trigger(event: string, data: any) {
-    const handlers = this.handlers[event] || []
-    handlers.forEach(h => h(data))
-  }
-}
+import { MockWebSocket, makeClient, injectMockWs } from './ws-test-helpers.ts'
 
 describe('HumanEnvClient handleMessage', () => {
   let mockWs: MockWebSocket
-  let client: HumanEnvClient
+  let client: ReturnType<typeof makeClient>
 
   beforeEach(() => {
     mockWs = new MockWebSocket()
-    client = new HumanEnvClient({
-      serverUrl: 'http://localhost:3056',
-      projectName: 'test-project',
-      projectApiKey: 'test-key',
+    client = makeClient()
+    injectMockWs(client, mockWs)
+    // Wire up message handler (normally done by doConnect)
+    mockWs.on('message', (raw: any) => {
+      try {
+        const msg = JSON.parse(raw.toString())
+        ;(client as any).handleMessage(msg)
+      } catch { /* ignore malformed */ }
     })
-    // Inject mock WebSocket
-    ;(client as any).ws = mockWs
-    ;(client as any).connected = true
   })
 
   it('handles successful auth_response', async () => {
-    const connectPromise = client.connect()
-    
-    // Trigger auth success response
+    const authPromise = new Promise<void>((resolve, reject) => {
+      ;(client as any)._authResolve = resolve
+      ;(client as any)._authReject = reject
+    })
+
     mockWs.trigger('message', Buffer.from(JSON.stringify({
       type: 'auth_response',
       payload: { success: true, whitelisted: true }
     })))
 
-    await connectPromise
+    await authPromise
     assert.strictEqual((client as any).authenticated, true)
   })
 
   it('handles failed auth_response', async () => {
-    const connectPromise = client.connect()
+    const authPromise = new Promise<void>((resolve, reject) => {
+      ;(client as any)._authResolve = resolve
+      ;(client as any)._authReject = reject
+    })
+
+    mockWs.trigger('message', Buffer.from(JSON.stringify({
+      type: 'auth_response',
+      payload: {
+        success: false,
+        error: 'Invalid API key',
+        code: ErrorCode.CLIENT_AUTH_INVALID_API_KEY
+      }
+    })))
 
     try {
-      // Trigger auth failure response
-      mockWs.trigger('message', Buffer.from(JSON.stringify({
-        type: 'auth_response',
-        payload: { 
-          success: false, 
-          error: 'Invalid API key',
-          code: ErrorCode.CLIENT_AUTH_INVALID_API_KEY
-        }
-      })))
-
-      await connectPromise
+      await authPromise
       assert.fail('Should have thrown')
     } catch (err: any) {
       assert.ok(err instanceof Error)
@@ -82,7 +62,6 @@ describe('HumanEnvClient handleMessage', () => {
   it('handles get_response with value', async () => {
     const getPromise = client.get('TEST_KEY')
 
-    // Trigger get response
     mockWs.trigger('message', Buffer.from(JSON.stringify({
       type: 'get_response',
       payload: { key: 'TEST_KEY', value: 'test-value' }
@@ -95,10 +74,9 @@ describe('HumanEnvClient handleMessage', () => {
   it('handles get_response with error', async () => {
     const getPromise = client.get('MISSING_KEY')
 
-    // Trigger get error response
     mockWs.trigger('message', Buffer.from(JSON.stringify({
       type: 'get_response',
-      payload: { 
+      payload: {
         error: 'Key not found',
         code: ErrorCode.SERVER_INTERNAL_ERROR
       }
@@ -116,22 +94,20 @@ describe('HumanEnvClient handleMessage', () => {
   it('handles set_response success', async () => {
     const setPromise = client.set('TEST_KEY', 'test-value')
 
-    // Trigger set success response
     mockWs.trigger('message', Buffer.from(JSON.stringify({
       type: 'set_response',
       payload: { success: true }
     })))
 
-    await setPromise // Should resolve without error
+    await setPromise
   })
 
   it('handles set_response with error', async () => {
     const setPromise = client.set('TEST_KEY', 'test-value')
 
-    // Trigger set error response
     mockWs.trigger('message', Buffer.from(JSON.stringify({
       type: 'set_response',
-      payload: { 
+      payload: {
         error: 'Not authenticated',
         code: ErrorCode.CLIENT_AUTH_INVALID_API_KEY
       }
@@ -147,10 +123,8 @@ describe('HumanEnvClient handleMessage', () => {
   })
 
   it('ignores pong messages', () => {
-    // Should not throw or affect state
     mockWs.trigger('message', Buffer.from(JSON.stringify({
       type: 'pong'
     })))
-    // No assertions needed - test passes if no error
   })
 })
