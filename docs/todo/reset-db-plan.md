@@ -1,30 +1,24 @@
-# Reset Database Feature
+# Reset Database
 
-Wipe all data and start fresh. Essential for lost-mnemonic recovery.
+> Wipe all data and restart fresh. Required when the mnemonic is lost and secrets are unrecoverable.
 
----
+## Endpoint
 
-## API
+| Method | Path | Auth | Body | Response |
+|--------|------|------|------|----------|
+| POST | `/api/reset` | Basic Auth | — | `{"ok": true}` |
 
-| Method | Path | Auth | Response |
-|--------|------|------|----------|
-| POST | `/api/reset` | Basic Auth (if enabled) | `{"ok": true}` or `{"error": "..."}` |
+**Effect:** Deletes all projects, envs, API keys, whitelist entries, and PK hash. Server returns to first-run state.
 
-**Effect:** Deletes all projects, envs, API keys, whitelist entries, and PK hash.
+## Implementation
 
----
-
-## Files to Modify
-
-### 1. `packages/server/src/db/interface.ts`
-
-Add `reset()` to `IDatabaseProvider`:
+### 1. Database Interface — `db/interface.ts`
 
 ```typescript
 reset(): Promise<void>
 ```
 
-### 2. `packages/server/src/db/sqlite.ts`
+### 2. SQLite Provider — `db/sqlite.ts`
 
 ```typescript
 async reset(): Promise<void> {
@@ -36,7 +30,7 @@ async reset(): Promise<void> {
 }
 ```
 
-### 3. `packages/server/src/db/mongo.ts`
+### 3. MongoDB Provider — `db/mongo.ts`
 
 ```typescript
 async reset(): Promise<void> {
@@ -45,7 +39,7 @@ async reset(): Promise<void> {
 }
 ```
 
-### 4. `packages/server/src/index.ts`
+### 4. Route — `index.ts`
 
 ```typescript
 app.post('/api/reset', async (req, res) => {
@@ -55,32 +49,30 @@ app.post('/api/reset', async (req, res) => {
 })
 ```
 
-### 5. `packages/server/src/views/index.ejs`
+### 5. Admin UI — `views/index.ejs`
 
-Add two UI entry points:
+Two entry points:
 
-**A. "Needs-PK" screen** — "Lost your recovery phrase?" link with reset button
+| Location | Trigger |
+|----------|--------|
+| PK-not-available screen | "Lost your recovery phrase?" link |
+| Settings tab | Danger Zone section |
 
-**B. Settings tab** — Danger Zone section with reset button
-
-**C. Confirmation dialog** — requires typing "RESET" to confirm
+Confirmation: user types `RESET` to enable the button.
 
 ```html
-<dialog v-if="showResetDialog" class="modal modal-open">
+<dialog class="modal modal-open">
   <div class="modal-box">
     <h3>Reset Database?</h3>
-    <p class="text-error">This action cannot be undone.</p>
-    <input v-model="resetConfirmText" placeholder="Type RESET">
-    <button @click="doReset" :disabled="resetConfirmText !== 'RESET'">Confirm</button>
+    <p class="text-error">This deletes everything. Cannot be undone.</p>
+    <input v-model="resetText" placeholder="Type RESET" />
+    <button @click="doReset" :disabled="resetText !== 'RESET'">Confirm</button>
   </div>
 </dialog>
 ```
 
----
+## Flow
 
-## UI Flow
-
-1. User clicks Reset → confirmation dialog
-2. User types "RESET" → POST `/api/reset`
-3. Server deletes DB, clears PK
-4. Page reloads → fresh setup screen
+```
+User clicks Reset → types "RESET" → POST /api/reset → DB wiped + PK cleared → page reloads → fresh setup
+```
