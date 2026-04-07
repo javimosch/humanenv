@@ -1,6 +1,6 @@
 # HumanEnv Test Plan
 
-**Status:** 216/234 tests implemented (92%) across 19 test files
+**Status:** 216/234 tests implemented (92%) across 20 test files
 
 ---
 
@@ -19,7 +19,8 @@
 | 2 | server | `db-sqlite-basic.test.ts` | 19 | ✅ |
 | 2 | server | `ws-router.test.ts` | 17 | ✅ |
 | 2 | server | `rest-routes.test.ts` | 20 | ✅ |
-| 2 | server | `routes-handlers.test.ts` | 35 | ✅ |
+| 2 | server | `routes-handlers-projects-envs.test.ts` | 17 | ✅ |
+| 2 | server | `routes-handlers-keys-whitelist-settings.test.ts` | 18 | ✅ |
 | 2 | server | `security-auth.test.ts` | 14 | ✅ |
 | 2 | server | `security-input-validation.test.ts` | 24 | ✅ |
 | 5 | client | `ws-manager-message.test.ts` | 7 | ✅ |
@@ -78,7 +79,7 @@ cd packages/shared && npm test
 cd packages/client && npm test
 
 # Single file
-node --import tsx --test packages/server/tests/routes-handlers.test.ts
+node --import tsx --test packages/server/tests/routes-handlers-projects-envs.test.ts
 ```
 
 ---
