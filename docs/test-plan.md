@@ -1,6 +1,6 @@
 # HumanEnv Test Plan
 
-**Status:** 216/234 tests implemented (92%) across 20 test files
+**Status:** 255/273 tests implemented (93%) across 21 test files
 
 ---
 
