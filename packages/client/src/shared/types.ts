@@ -62,6 +62,7 @@ export interface AuthPayload {
 export interface AuthResponse {
   success: boolean
   whitelisted: boolean
+  status?: 'approved' | 'pending' | 'rejected'
   error?: string
   code?: string
 }
