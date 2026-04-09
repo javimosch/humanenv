@@ -35,6 +35,7 @@ COPY --from=deps /app/packages/server/package.json ./packages/server/
 COPY tsconfig.json ./
 COPY packages/shared/src ./packages/shared/src
 COPY packages/server/src ./packages/server/src
+COPY scripts ./scripts
 
 # Build is not needed as we use tsx for runtime compilation
 # But we validate TypeScript
@@ -46,7 +47,7 @@ RUN npm run typecheck --workspace=packages/server || true
 FROM node:20-alpine AS production
 
 # Install runtime dependencies for better-sqlite3
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat sqlite
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S humanenv && \
@@ -63,6 +64,7 @@ COPY --from=builder /app/packages/server ./packages/server
 # Copy source code
 COPY --from=builder /app/packages/server/src ./packages/server/src
 COPY --from=builder /app/packages/shared/src ./packages/shared/src
+COPY --from=builder /app/scripts ./scripts
 
 # Create data directory for SQLite and credentials
 RUN mkdir -p /data/humanenv && \
