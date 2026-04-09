@@ -186,10 +186,11 @@ export class WsRouter {
           const env = await this.db.getEnv(project.id, key)
           if (!env) return send({ type: 'get_response', payload: { error: `Key not found: ${key}`, code: ErrorCode.SERVER_INTERNAL_ERROR } })
 
-          // Block api-mode-only envs for CLI channel
-          if (env.apiModeOnly) {
-            return send({ type: 'get_response', payload: { error: ErrorMessages.ENV_API_MODE_ONLY, code: ErrorCode.ENV_API_MODE_ONLY } })
-          }
+          // NOTE: apiModeOnly flag is reserved for future CLI/SDK channel distinction
+          // Currently all authenticated clients (SDK and CLI) can access all envs
+          // if (env.apiModeOnly) {
+          //   return send({ type: 'get_response', payload: { error: ErrorMessages.ENV_API_MODE_ONLY, code: ErrorCode.ENV_API_MODE_ONLY } })
+          // }
 
           const decrypted = this.pk.decrypt(env.encryptedValue, `${project.id}:${key}`)
           send({ type: 'get_response', payload: { key, value: decrypted } })
