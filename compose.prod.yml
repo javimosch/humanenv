@@ -1,0 +1,43 @@
+services:
+  humanenv-server:
+    image: javimosch/humanenv:latest
+    container_name: humanenv-server
+    restart: unless-stopped
+    ports:
+      - "3056:3056"
+    environment:
+      - NODE_ENV=production
+      - PORT=3056
+      - MONGODB_URI=${MONGODB_URI:-}
+      - HUMANENV_MNEMONIC=${HUMANENV_MNEMONIC:-}
+      - HUMANENV_TEMPORAL_PK=${HUMANENV_TEMPORAL_PK:-}
+      - BASIC_AUTH_USERNAME=${BASIC_AUTH_USERNAME:-admin}
+      - BASIC_AUTH_PASSWORD=${BASIC_AUTH_PASSWORD:-admin}
+      - HTTPS_CERT_PATH=${HTTPS_CERT_PATH:-}
+      - HTTPS_KEY_PATH=${HTTPS_KEY_PATH:-}
+      - DATA_DIR=/data/humanenv
+    volumes:
+      - humanenv-data:/data/humanenv
+    networks:
+      - humanenv-network
+      - coolify-shared
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3056/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  humanenv-data:
+    driver: local
+    name: humanenv-data
+
+networks:
+  humanenv-network:
+    driver: bridge
+    name: humanenv-network
+  coolify-shared:
+    external: true

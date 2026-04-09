@@ -1,0 +1,15 @@
+http:
+  routers:
+    humanenv-server-staging:
+      entryPoints:
+        - https
+      service: humanenv-server-staging
+      rule: Host(`humanenv.intrane.fr`)
+      tls:
+        certresolver: letsencrypt
+  services:
+    humanenv-server-staging:
+      loadBalancer:
+        servers:
+          -
+            url: 'http://humanenv-server:3056'
