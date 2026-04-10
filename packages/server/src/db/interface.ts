@@ -7,14 +7,14 @@ export interface IDatabaseProvider {
   getProject(name: string): Promise<{ id: string; name: string; createdAt: number; fingerprintVerification: boolean; requireApiKey: boolean } | null>
   listProjects(): Promise<Array<{ id: string; name: string; createdAt: number }>>
   deleteProject(id: string): Promise<void>
-  updateProject(id: string, data: { fingerprintVerification?: boolean; requireApiKey?: boolean }): Promise<void>
+  updateProject(id: string, data: { name?: string; fingerprintVerification?: boolean; requireApiKey?: boolean }): Promise<void>
   
   // Env CRUD
-  createEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean): Promise<{ id: string }>
-  getEnv(projectId: string, key: string): Promise<{ encryptedValue: string; apiModeOnly: boolean } | null>
-  listEnvs(projectId: string): Promise<Array<{ id: string; key: string; apiModeOnly: boolean; createdAt: number }>>
-  listEnvsWithValues(projectId: string): Promise<Array<{ id: string; key: string; encryptedValue: string; apiModeOnly: boolean; createdAt: number }>>
-  updateEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean): Promise<void>
+  createEnv(projectId: string, key: string, encryptedValue: string): Promise<{ id: string }>
+  getEnv(projectId: string, key: string): Promise<{ encryptedValue: string } | null>
+  listEnvs(projectId: string): Promise<Array<{ id: string; key: string; createdAt: number }>>
+  listEnvsWithValues(projectId: string): Promise<Array<{ id: string; key: string; encryptedValue: string; createdAt: number }>>
+  updateEnv(projectId: string, key: string, encryptedValue: string): Promise<void>
   deleteEnv(projectId: string, key: string): Promise<void>
   
   // API Key CRUD

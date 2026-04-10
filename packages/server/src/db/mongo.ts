@@ -61,41 +61,44 @@ export class MongoProvider implements IDatabaseProvider {
     await this.col('whitelist').deleteMany({ projectId: id })
   }
 
-  async updateProject(id: string, data: { fingerprintVerification?: boolean; requireApiKey?: boolean }): Promise<void> {
+  async updateProject(id: string, data: { name?: string; fingerprintVerification?: boolean; requireApiKey?: boolean }): Promise<void> {
     const $set: any = {}
+    if (data.name !== undefined) $set.name = data.name
     if (data.fingerprintVerification !== undefined) $set.fingerprintVerification = data.fingerprintVerification
     if (data.requireApiKey !== undefined) $set.requireApiKey = data.requireApiKey
     if (Object.keys($set).length) await this.col('projects').updateOne({ id }, { $set })
   }
 
-  async createEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean): Promise<{ id: string }> {
-    const doc = { id: crypto.randomUUID(), projectId, key, encryptedValue, apiModeOnly, createdAt: Date.now() }
+  async createEnv(projectId: string, key: string, encryptedValue: string): Promise<{ id: string }> {
+    const id = crypto.randomUUID()
+    const doc = { id, projectId, key, encryptedValue, createdAt: Date.now() }
     await this.col('envs').updateOne(
       { projectId, key },
       { $set: doc },
       { upsert: true }
     )
-    return { id: doc.id }
+    return { id }
   }
 
-  async getEnv(projectId: string, key: string): Promise<{ encryptedValue: string; apiModeOnly: boolean } | null> {
+  async getEnv(projectId: string, key: string): Promise<{ encryptedValue: string } | null> {
     const doc = await this.col('envs').findOne({ projectId, key }) as any
-    return doc ? { encryptedValue: doc.encryptedValue, apiModeOnly: doc.apiModeOnly } : null
+    return doc ? { encryptedValue: doc.encryptedValue } : null
   }
 
-  async listEnvs(projectId: string): Promise<Array<{ id: string; key: string; apiModeOnly: boolean; createdAt: number }>> {
+  async listEnvs(projectId: string): Promise<Array<{ id: string; key: string; createdAt: number }>> {
     const docs = await this.col('envs').find({ projectId }).sort({ key: 1 }).toArray() as any[]
-    return docs.map(d => ({ id: d.id, key: d.key, apiModeOnly: d.apiModeOnly, createdAt: d.createdAt }))
+    return docs.map(d => ({ id: d.id, key: d.key, createdAt: d.createdAt }))
   }
 
-  async listEnvsWithValues(projectId: string): Promise<Array<{ id: string; key: string; encryptedValue: string; apiModeOnly: boolean; createdAt: number }>> {
-    return await this.col('envs').find({ projectId }).sort({ key: 1 }).toArray() as any
+  async listEnvsWithValues(projectId: string): Promise<Array<{ id: string; key: string; encryptedValue: string; createdAt: number }>> {
+    const docs = await this.col('envs').find({ projectId }).sort({ key: 1 }).toArray() as any[]
+    return docs.map(d => ({ id: d.id, key: d.key, encryptedValue: d.encryptedValue, createdAt: d.createdAt }))
   }
 
-  async updateEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean): Promise<void> {
+  async updateEnv(projectId: string, key: string, encryptedValue: string): Promise<void> {
     await this.col('envs').updateOne(
       { projectId, key },
-      { $set: { encryptedValue, apiModeOnly } }
+      { $set: { encryptedValue } }
     )
   }
 

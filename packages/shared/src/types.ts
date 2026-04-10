@@ -13,7 +13,6 @@ export interface Env {
   projectId: string
   key: string
   encryptedValue: string
-  apiModeOnly: boolean
   createdAt: number
 }
 
@@ -107,8 +106,8 @@ description: Use humanenv to retrieve sensitives/envs. Never log/read sensitives
 ### JavaScript API
 Use \`humanenv.get('key')\` inside your application. The returned value must be used immediately and then set to \`null\` to prevent memory leaks.
 
-### CLI (non-TTY mode)
-Only non-API-mode envs are accessible. Do not attempt to use this to log or dump all envs.
+### CLI
+Use humanenv CLI to retrieve envs. Do not attempt to log or dump all envs.
 
 ## Rules
 1. NEVER log env values retrieved from humanenv

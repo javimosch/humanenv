@@ -217,9 +217,9 @@ export class WsRouter {
           const encrypted = this.pk.encrypt(value, `${project.id}:${key}`)
 
           if (existing) {
-            await this.db.updateEnv(project.id, key, encrypted, existing.apiModeOnly)
+            await this.db.updateEnv(project.id, key, encrypted)
           } else {
-            await this.db.createEnv(project.id, key, encrypted, false)
+            await this.db.createEnv(project.id, key, encrypted)
           }
 
           send({ type: 'set_response', payload: { success: true } })

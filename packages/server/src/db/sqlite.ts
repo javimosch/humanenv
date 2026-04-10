@@ -31,7 +31,6 @@ export class SqliteProvider implements IDatabaseProvider {
         project_id TEXT NOT NULL,
         key TEXT NOT NULL,
         encrypted_value TEXT NOT NULL,
-        api_mode_only INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL,
         UNIQUE(project_id, key),
         FOREIGN KEY(project_id) REFERENCES projects(id)
@@ -98,7 +97,10 @@ export class SqliteProvider implements IDatabaseProvider {
     tx()
   }
 
-  async updateProject(id: string, data: { fingerprintVerification?: boolean; requireApiKey?: boolean }): Promise<void> {
+  async updateProject(id: string, data: { name?: string; fingerprintVerification?: boolean; requireApiKey?: boolean }): Promise<void> {
+    if (data.name !== undefined) {
+      this.db.prepare('UPDATE projects SET name = ? WHERE id = ?').run(data.name, id)
+    }
     if (data.fingerprintVerification !== undefined) {
       this.db.prepare('UPDATE projects SET fingerprint_verification = ? WHERE id = ?').run(data.fingerprintVerification ? 1 : 0, id)
     }
@@ -107,32 +109,32 @@ export class SqliteProvider implements IDatabaseProvider {
     }
   }
 
-  async createEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean): Promise<{ id: string }> {
+  async createEnv(projectId: string, key: string, encryptedValue: string): Promise<{ id: string }> {
     const id = crypto.randomUUID()
-    this.db.prepare('INSERT OR REPLACE INTO envs (id, project_id, key, encrypted_value, api_mode_only, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
-      id, projectId, key, encryptedValue, apiModeOnly ? 1 : 0, Date.now()
+    this.db.prepare('INSERT OR REPLACE INTO envs (id, project_id, key, encrypted_value, created_at) VALUES (?, ?, ?, ?, ?)').run(
+      id, projectId, key, encryptedValue, Date.now()
     )
     return { id }
   }
 
-  async getEnv(projectId: string, key: string): Promise<{ encryptedValue: string; apiModeOnly: boolean } | null> {
-    const row = this.db.prepare('SELECT encrypted_value, api_mode_only FROM envs WHERE project_id = ? AND key = ?').get(projectId, key) as any
-    return row ? { encryptedValue: row.encrypted_value, apiModeOnly: !!row.api_mode_only } : null
+  async getEnv(projectId: string, key: string): Promise<{ encryptedValue: string } | null> {
+    const row = this.db.prepare('SELECT encrypted_value FROM envs WHERE project_id = ? AND key = ?').get(projectId, key) as any
+    return row ? { encryptedValue: row.encrypted_value } : null
   }
 
-  async listEnvs(projectId: string): Promise<Array<{ id: string; key: string; apiModeOnly: boolean; createdAt: number }>> {
-    const rows = this.db.prepare('SELECT id, key, api_mode_only, created_at FROM envs WHERE project_id = ? ORDER BY key').all(projectId) as any[]
-    return rows.map(r => ({ id: r.id, key: r.key, apiModeOnly: !!r.api_mode_only, createdAt: r.created_at }))
+  async listEnvs(projectId: string): Promise<Array<{ id: string; key: string; createdAt: number }>> {
+    const rows = this.db.prepare('SELECT id, key, created_at FROM envs WHERE project_id = ? ORDER BY key').all(projectId) as any[]
+    return rows.map(r => ({ id: r.id, key: r.key, createdAt: r.created_at }))
   }
 
-  async listEnvsWithValues(projectId: string): Promise<Array<{ id: string; key: string; encryptedValue: string; apiModeOnly: boolean; createdAt: number }>> {
-    const rows = this.db.prepare('SELECT id, key, encrypted_value, api_mode_only, created_at FROM envs WHERE project_id = ? ORDER BY key').all(projectId) as any[]
-    return rows.map(r => ({ id: r.id, key: r.key, encryptedValue: r.encrypted_value, apiModeOnly: !!r.api_mode_only, createdAt: r.created_at }))
+  async listEnvsWithValues(projectId: string): Promise<Array<{ id: string; key: string; encryptedValue: string; createdAt: number }>> {
+    const rows = this.db.prepare('SELECT id, key, encrypted_value, created_at FROM envs WHERE project_id = ? ORDER BY key').all(projectId) as any[]
+    return rows.map(r => ({ id: r.id, key: r.key, encryptedValue: r.encrypted_value, createdAt: r.created_at }))
   }
 
-  async updateEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean): Promise<void> {
-    this.db.prepare('UPDATE envs SET encrypted_value = ?, api_mode_only = ? WHERE project_id = ? AND key = ?').run(
-      encryptedValue, apiModeOnly ? 1 : 0, projectId, key
+  async updateEnv(projectId: string, key: string, encryptedValue: string): Promise<void> {
+    this.db.prepare('UPDATE envs SET encrypted_value = ? WHERE project_id = ? AND key = ?').run(
+      encryptedValue, projectId, key
     )
   }
 

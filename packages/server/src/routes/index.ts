@@ -21,8 +21,17 @@ export function createProjectsRouter(db: IDatabaseProvider, pk: PkManager): Rout
   })
 
   router.put('/:id', async (req, res) => {
-    const { fingerprintVerification, requireApiKey } = req.body || {}
-    await db.updateProject(req.params.id, { fingerprintVerification, requireApiKey })
+    const { name, fingerprintVerification, requireApiKey } = req.body || {}
+    if (name !== undefined) {
+      if (typeof name !== 'string' || !name.trim()) {
+        return res.status(400).json({ error: 'name must be a non-empty string' })
+      }
+      const existing = await db.getProject(name.trim())
+      if (existing && existing.id !== req.params.id) {
+        return res.status(409).json({ error: 'Project name already exists' })
+      }
+    }
+    await db.updateProject(req.params.id, { name: name?.trim(), fingerprintVerification, requireApiKey })
     res.json({ ok: true })
   })
 
@@ -62,18 +71,18 @@ export function createEnvsRouter(db: IDatabaseProvider, pk: PkManager): Router {
   })
 
   router.post('/project/:projectId', async (req, res) => {
-    const { key, value, apiModeOnly } = req.body || {}
+    const { key, value } = req.body || {}
     if (!key || value === undefined) return res.status(400).json({ error: 'key and value required' })
     const encrypted = pk.encrypt(value, `${req.params.projectId}:${key}`)
-    const result = await db.createEnv(req.params.projectId, key, encrypted, !!apiModeOnly)
+    const result = await db.createEnv(req.params.projectId, key, encrypted)
     res.status(201).json({ id: result.id })
   })
 
   router.put('/project/:projectId', async (req, res) => {
-    const { key, value, apiModeOnly } = req.body || {}
+    const { key, value } = req.body || {}
     if (!key || value === undefined) return res.status(400).json({ error: 'key and value required' })
     const encrypted = pk.encrypt(value, `${req.params.projectId}:${key}`)
-    await db.updateEnv(req.params.projectId, key, encrypted, !!apiModeOnly)
+    await db.updateEnv(req.params.projectId, key, encrypted)
     res.json({ ok: true })
   })
 
