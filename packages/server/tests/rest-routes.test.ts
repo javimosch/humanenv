@@ -26,6 +26,11 @@ function createMockResponse() {
 }
 
 // Mock database provider
+let idCounter = 0
+function generateId(prefix: string) {
+  return `${prefix}-${Date.now()}-${++idCounter}`
+}
+
 class MockDb {
   data: any = {
     projects: new Map(),
@@ -43,7 +48,7 @@ class MockDb {
   }
   
   async createProject(name: string) {
-    const id = `proj-${Date.now()}`
+    const id = generateId('proj')
     const project = { id, name, createdAt: Date.now() }
     this.data.projects.set(id, project)
     return { id }
@@ -58,7 +63,7 @@ class MockDb {
   }
   
   async createEnv(projectId: string, key: string, encryptedValue: string) {
-    const id = `env-${Date.now()}`
+    const id = generateId('env')
     const env = { id, projectId, key, encryptedValue, createdAt: Date.now() }
     this.data.envs.set(id, env)
     return { id }
@@ -83,7 +88,7 @@ class MockDb {
   }
   
   async createApiKey(projectId: string, encryptedValue: string, ttl?: number) {
-    const id = `key-${Date.now()}`
+    const id = generateId('key')
     const key = { id, projectId, encryptedValue, ttl, createdAt: Date.now() }
     this.data.apiKeys.set(id, key)
     return { id }
@@ -98,7 +103,7 @@ class MockDb {
   }
   
   async createWhitelistEntry(projectId: string, fingerprint: string, status: string) {
-    const id = `wl-${Date.now()}`
+    const id = generateId('wl')
     const entry = { id, projectId, fingerprint, status, createdAt: Date.now() }
     this.data.whitelist.set(id, entry)
     return { id }
