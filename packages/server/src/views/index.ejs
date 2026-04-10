@@ -64,11 +64,19 @@
           </div>
           <ul class="mt-2">
             <li v-for="p in projects" :key="p.id" class="flex justify-between items-center py-2 border-b last:border-b-0">
-              <div>
-                <span class="font-bold">{{ p.name }}</span>
-                <span class="text-xs text-base-content/50 ml-2">{{ new Date(p.createdAt).toLocaleString() }}</span>
+              <div class="flex items-center gap-2 flex-1">
+                <template v-if="editingProjectId === p.id">
+                  <input v-model="editingProjectName" class="input input-bordered input-sm flex-1" @keyup.enter="saveProjectName(p)" @keyup.escape="cancelEditingProject" ref="editInput">
+                  <button @click="saveProjectName(p)" class="btn btn-success btn-xs">Save</button>
+                  <button @click="cancelEditingProject" class="btn btn-ghost btn-xs">Cancel</button>
+                </template>
+                <template v-else>
+                  <span class="font-bold">{{ p.name }}</span>
+                  <span class="text-xs text-base-content/50">{{ new Date(p.createdAt).toLocaleString() }}</span>
+                </template>
               </div>
-              <div class="flex gap-2">
+              <div class="flex gap-2" v-if="editingProjectId !== p.id">
+                <button @click="startEditingProject(p)" class="btn btn-ghost btn-xs">Rename</button>
                 <button @click="selectProject(p)" class="btn btn-ghost btn-xs">Manage</button>
                 <button @click="deleteProject(p)" class="btn btn-error btn-xs">Delete</button>
               </div>
@@ -99,18 +107,16 @@
                 <div class="flex gap-2 mb-2">
                   <input v-model="envForm.key" @input="envForm.key = envForm.key.replace(/\s/g, '_')" placeholder="KEY_NAME" class="input input-bordered input-sm mono flex-1">
                   <input v-model="envForm.value" type="password" placeholder="value" class="input input-bordered input-sm flex-1">
-                  <label class="label cursor-pointer gap-2"><span class="label-text text-xs">api-mode-only</span><input type="checkbox" v-model="envForm.apiModeOnly" class="toggle toggle-sm toggle-primary"></label>
                   <button @click="saveEnv" class="btn btn-primary btn-sm">{{ envExists ? 'Update' : 'Save' }}</button>
                 </div>
                 <div class="flex gap-2 mb-2">
                   <button @click="openEnvModal" class="btn btn-secondary btn-sm">View as .env</button>
                 </div>
                 <table class="table table-xs">
-                  <thead><tr><th>Key</th><th>api-mode-only</th><th>Created</th><th></th></tr></thead>
+                  <thead><tr><th>Key</th><th>Created</th><th></th></tr></thead>
                   <tbody>
-                    <tr v-for="env in envs" :key="env.id" @click="envForm.key = env.key; envForm.apiModeOnly = env.apiModeOnly;" class="cursor-pointer hover:bg-base-200">
+                    <tr v-for="env in envs" :key="env.id" @click="envForm.key = env.key" class="cursor-pointer hover:bg-base-200">
                       <td class="mono font-bold">{{ env.key }}</td>
-                      <td><span v-if="env.apiModeOnly" class="badge badge-warning badge-sm">api-only</span><span v-else class="badge badge-ghost badge-sm">cli-ok</span></td>
                       <td>{{ new Date(env.createdAt).toLocaleString() }}</td>
                       <td class="flex gap-1"><button @click.stop="copyEnvValue(env.key)" class="btn btn-info btn-xs">Copy</button><button @click.stop="deleteEnv(env.key)" class="btn btn-error btn-xs">Delete</button></td>
                     </tr>
@@ -268,9 +274,11 @@
         const newProjectName = ref('')
         const selectedProject = ref(null)
         const activeTab = ref('envs')
+        const editingProjectId = ref(null)
+        const editingProjectName = ref('')
 
         const envs = ref([])
-        const envForm = ref({ key: '', value: '', apiModeOnly: false })
+        const envForm = ref({ key: '', value: '' })
         const envModalOpen = ref(false)
         const envModalContent = ref('')
 
@@ -344,6 +352,17 @@
         }
         async function deleteProject(p) { if (confirm('Delete project "' + p.name + '" and all its data?')) { await api('/projects/' + p.id, { method: 'DELETE' }); selectedProject.value = null; await loadProjects() } }
         async function selectProject(p) { selectedProject.value = p; await loadProjectData() }
+        function startEditingProject(p) { editingProjectId.value = p.id; editingProjectName.value = p.name }
+        function cancelEditingProject() { editingProjectId.value = null; editingProjectName.value = '' }
+        async function saveProjectName(p) {
+          if (!editingProjectName.value.trim() || editingProjectName.value.trim() === p.name) { cancelEditingProject(); return }
+          try {
+            await api('/projects/' + p.id, { method: 'PUT', body: JSON.stringify({ name: editingProjectName.value.trim() }) })
+            if (selectedProject.value?.id === p.id) selectedProject.value = { ...selectedProject.value, name: editingProjectName.value.trim() }
+            await loadProjects()
+            cancelEditingProject()
+          } catch (e) { notify('Error: ' + e.message) }
+        }
 
         async function loadProjectData() {
           if (!selectedProject.value) return
@@ -467,10 +486,10 @@
 
         return {
           pkStatus, existing, generatedMnemonic, submittedMnemonic, pkError, pkSubmitting, pkVerified,
-          activeDb, projects, newProjectName, selectedProject, activeTab,
+          activeDb, projects, newProjectName, selectedProject, activeTab, editingProjectId, editingProjectName,
           envs, envForm, envExists, envModalOpen, envModalContent, envModalVisible, apiKeys, newKeyName, newKeyTtlValue, newKeyTtlUnit, lastCreatedKey, autoAcceptApiKey,
           whitelist, wlForm, pendingNotifications, toastMsg, fingerprintVerification, requireApiKey, temporalPk,
-          loadProjects, createProject, deleteProject, selectProject,
+          loadProjects, createProject, deleteProject, selectProject, startEditingProject, cancelEditingProject, saveProjectName,
           submitPk, saveEnv, deleteEnv, copyEnvValue, openEnvModal, createApiKey, revokeKey, updateFpVerification, updateRequireApiKey, updateTemporalPk,
           addWhitelist, approveWhitelist, rejectWhitelist, deleteWhitelist,
           approveNotification, rejectNotification, formatTtl
