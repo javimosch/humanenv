@@ -343,9 +343,6 @@ program
       if (/whitelist/i.test(e.message) || /not.*approved/i.test(e.message)) {
         code = 'CLIENT_NOT_WHITELISTED'
         hint = `Run humanenv auth to submit your fingerprint. Then ask the admin to approve it at ${adminUiWhitelistUrl}`
-      } else if (/api.?mode/i.test(e.message)) {
-        code = 'ENV_API_MODE_ONLY'
-        hint = 'This env flag is API-mode only: use the SDK (await humanenv.get()) instead of CLI.'
       } else if (/not.*found|key.*not.*exist/i.test(e.message)) {
         code = 'ENV_KEY_NOT_FOUND'
         hint = `Key "${key}" does not exist. Create it via humanenv set or the admin UI.`
