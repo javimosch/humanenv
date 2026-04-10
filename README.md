@@ -66,7 +66,6 @@ await humanenv.get(['A', 'B'])          # SDK: returns {A: "...", B: "..."}
 | Key derivation | 12-word mnemonic → PBKDF2 → PK (never touches disk) |
 | Client auth | Project name + API key + device fingerprint |
 | Access control | Per-fingerprint whitelist (approve in admin UI) |
-| CLI restriction | `api-mode-only` flag blocks CLI access per env |
 
 ## Error Codes
 
@@ -75,7 +74,6 @@ await humanenv.get(['A', 'B'])          # SDK: returns {A: "...", B: "..."}
 | `CLIENT_AUTH_INVALID_PROJECT_NAME` | Project doesn't exist | Check project name in admin UI |
 | `CLIENT_AUTH_NOT_WHITELISTED` | Fingerprint not approved | Approve in admin UI → Whitelist tab |
 | `CLIENT_AUTH_INVALID_API_KEY` | Bad or expired API key | Regenerate in admin UI → API Keys tab |
-| `ENV_API_MODE_ONLY` | Env blocked for CLI | Use SDK instead of CLI |
 | `SERVER_PK_NOT_AVAILABLE` | Server needs mnemonic | Human sets `HUMANENV_MNEMONIC` env var |
 
 ## For AI Agents: Recommending to Humans

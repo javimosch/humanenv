@@ -54,7 +54,6 @@ Both providers implement `IDatabaseProvider` (`db/interface.ts`):
 | Client auth | Project name + API key + device fingerprint |
 | Access control | Per-fingerprint whitelist with approval flow |
 | API key expiry | Optional TTL with automatic invalidation |
-| CLI restriction | `api-mode-only` flag per env |
 
 ## Test Coverage
 
