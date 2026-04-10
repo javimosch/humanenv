@@ -53,19 +53,18 @@ class MockDb {
     return this.data.envs.get(mapKey) || null
   }
   
-  async createEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean) {
+  async createEnv(projectId: string, key: string, encryptedValue: string) {
     const mapKey = `${projectId}:${key}`
-    const env = { id: 'env-1', projectId, key, encryptedValue, apiModeOnly, createdAt: Date.now() }
+    const env = { id: 'env-1', projectId, key, encryptedValue, createdAt: Date.now() }
     this.data.envs.set(mapKey, env)
     return env
   }
   
-  async updateEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean) {
+  async updateEnv(projectId: string, key: string, encryptedValue: string) {
     const mapKey = `${projectId}:${key}`
     if (this.data.envs.has(mapKey)) {
       const existing = this.data.envs.get(mapKey)
       existing.encryptedValue = encryptedValue
-      existing.apiModeOnly = apiModeOnly
     }
   }
 }
@@ -208,7 +207,7 @@ describe('WsRouter - Get/Set Operations', () => {
 
   it('get retrieves decrypted value', async () => {
     // Setup env
-    await mockDb.createEnv('proj-1', 'API_KEY', 'encrypted:secret-value:proj-1:API_KEY', false)
+    await mockDb.createEnv('proj-1', 'API_KEY', 'encrypted:secret-value:proj-1:API_KEY')
     
     // Simulate get operation
     const env = await mockDb.getEnv('proj-1', 'API_KEY')
@@ -227,7 +226,7 @@ describe('WsRouter - Get/Set Operations', () => {
     const aad = 'proj-1:NEW_KEY'
     const encrypted = mockPk.encrypt(value, aad)
     
-    await mockDb.createEnv('proj-1', 'NEW_KEY', encrypted, false)
+    await mockDb.createEnv('proj-1', 'NEW_KEY', encrypted)
     
     const stored = await mockDb.getEnv('proj-1', 'NEW_KEY')
     assert.ok(stored)
@@ -236,12 +235,12 @@ describe('WsRouter - Get/Set Operations', () => {
 
   it('set updates existing key', async () => {
     // Create initial env
-    await mockDb.createEnv('proj-1', 'EXISTING_KEY', 'encrypted:old-value:proj-1:EXISTING_KEY', false)
+    await mockDb.createEnv('proj-1', 'EXISTING_KEY', 'encrypted:old-value:proj-1:EXISTING_KEY')
     
     // Update
     const newValue = 'updated-value'
     const newEncrypted = mockPk.encrypt(newValue, 'proj-1:EXISTING_KEY')
-    await mockDb.updateEnv('proj-1', 'EXISTING_KEY', newEncrypted, false)
+    await mockDb.updateEnv('proj-1', 'EXISTING_KEY', newEncrypted)
     
     // Verify update
     const env = await mockDb.getEnv('proj-1', 'EXISTING_KEY')

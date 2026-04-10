@@ -57,18 +57,17 @@ class MockDb {
     return Array.from(this.data.envs.values()).filter((e: any) => e.projectId === projectId)
   }
   
-  async createEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean) {
+  async createEnv(projectId: string, key: string, encryptedValue: string) {
     const id = `env-${Date.now()}`
-    const env = { id, projectId, key, encryptedValue, apiModeOnly, createdAt: Date.now() }
+    const env = { id, projectId, key, encryptedValue, createdAt: Date.now() }
     this.data.envs.set(id, env)
     return { id }
   }
   
-  async updateEnv(projectId: string, key: string, encryptedValue: string, apiModeOnly: boolean) {
+  async updateEnv(projectId: string, key: string, encryptedValue: string) {
     const env = Array.from(this.data.envs.values()).find((e: any) => e.projectId === projectId && e.key === key)
     if (env) {
       env.encryptedValue = encryptedValue
-      env.apiModeOnly = apiModeOnly
     }
   }
   
@@ -218,8 +217,8 @@ describe('Envs Router', () => {
   })
 
   it('GET /api/envs/project/:id returns list of envs', async () => {
-    await db.createEnv(projectId, 'KEY_A', 'encrypted-a', false)
-    await db.createEnv(projectId, 'KEY_B', 'encrypted-b', true)
+    await db.createEnv(projectId, 'KEY_A', 'encrypted-a')
+    await db.createEnv(projectId, 'KEY_B', 'encrypted-b')
     
     const req = createMockRequest({ projectId })
     const res = createMockResponse()
@@ -234,8 +233,7 @@ describe('Envs Router', () => {
   it('POST /api/envs/project/:id creates env', async () => {
     const req = createMockRequest({ projectId }, { 
       key: 'NEW_KEY', 
-      value: 'secret-value',
-      apiModeOnly: false 
+      value: 'secret-value'
     })
     const res = createMockResponse()
     
@@ -243,7 +241,7 @@ describe('Envs Router', () => {
       res.status(400).json({ error: 'key and value required' })
     } else {
       const encrypted = pk.encrypt(req.body.value, `${projectId}:${req.body.key}`)
-      const result = await db.createEnv(projectId, req.body.key, encrypted, !!req.body.apiModeOnly)
+      const result = await db.createEnv(projectId, req.body.key, encrypted)
       res.status(201).json({ id: result.id })
     }
     
@@ -263,24 +261,23 @@ describe('Envs Router', () => {
   })
 
   it('PUT /api/envs/project/:id updates env', async () => {
-    await db.createEnv(projectId, 'EXISTING_KEY', 'old-encrypted', false)
+    await db.createEnv(projectId, 'EXISTING_KEY', 'old-encrypted')
     
     const req = createMockRequest({ projectId }, {
       key: 'EXISTING_KEY',
-      value: 'new-value',
-      apiModeOnly: true
+      value: 'new-value'
     })
     const res = createMockResponse()
     
     const encrypted = pk.encrypt(req.body.value, `${projectId}:${req.body.key}`)
-    await db.updateEnv(projectId, req.body.key, encrypted, !!req.body.apiModeOnly)
+    await db.updateEnv(projectId, req.body.key, encrypted)
     res.json({ ok: true })
     
     assert.strictEqual(res.statusCode, 200)
   })
 
   it('DELETE /api/envs/project/:id/:key removes env', async () => {
-    await db.createEnv(projectId, 'TO_DELETE', 'encrypted', false)
+    await db.createEnv(projectId, 'TO_DELETE', 'encrypted')
     
     const req = createMockRequest({ projectId, key: 'TO_DELETE' })
     const res = createMockResponse()

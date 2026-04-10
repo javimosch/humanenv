@@ -68,17 +68,15 @@ describe('SqliteProvider - listEnvsWithValues', () => {
   afterEach(teardown)
 
   it('returns encrypted values and all fields', async () => {
-    await db.createEnv(projectId, 'DB_HOST', 'enc-host', false)
-    await db.createEnv(projectId, 'DB_PASS', 'enc-pass', true)
+    await db.createEnv(projectId, 'DB_HOST', 'enc-host')
+    await db.createEnv(projectId, 'DB_PASS', 'enc-pass')
 
     const envs = await db.listEnvsWithValues(projectId)
     assert.strictEqual(envs.length, 2)
     assert.strictEqual(envs[0].key, 'DB_HOST')
     assert.strictEqual(envs[0].encryptedValue, 'enc-host')
-    assert.strictEqual(envs[0].apiModeOnly, false)
     assert.strictEqual(envs[1].key, 'DB_PASS')
     assert.strictEqual(envs[1].encryptedValue, 'enc-pass')
-    assert.strictEqual(envs[1].apiModeOnly, true)
   })
 
   it('returns empty array when no envs', async () => {

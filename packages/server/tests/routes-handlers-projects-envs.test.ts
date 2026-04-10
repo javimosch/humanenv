@@ -141,21 +141,21 @@ describe('Route Handlers - Envs', () => {
 
   it('GET /project/:projectId returns list of envs', async () => {
     db.listEnvs = async (projectId: string) => [
-      { id: 'e1', key: 'DB_HOST', apiModeOnly: false, createdAt: 1000 },
-      { id: 'e2', key: 'SECRET', apiModeOnly: true, createdAt: 2000 },
+      { id: 'e1', key: 'DB_HOST', createdAt: 1000 },
+      { id: 'e2', key: 'SECRET', createdAt: 2000 },
     ]
     const res = await fetch(`${base}/api/envs/project/proj-1`)
     assert.strictEqual(res.status, 200)
     const data = await res.json()
     assert.strictEqual(data.length, 2)
     assert.strictEqual(data[0].key, 'DB_HOST')
-    assert.strictEqual(data[1].apiModeOnly, true)
+    assert.strictEqual(data[1].key, 'SECRET')
   })
 
   it('GET /project/:projectId/all bulk decrypts all envs', async () => {
     db.listEnvsWithValues = async () => [
-      { id: 'e1', key: 'KEY_A', encryptedValue: 'enc:value-a', apiModeOnly: false, createdAt: 1000 },
-      { id: 'e2', key: 'KEY_B', encryptedValue: 'enc:value-b', apiModeOnly: false, createdAt: 2000 },
+      { id: 'e1', key: 'KEY_A', encryptedValue: 'enc:value-a', createdAt: 1000 },
+      { id: 'e2', key: 'KEY_B', encryptedValue: 'enc:value-b', createdAt: 2000 },
     ]
     const res = await fetch(`${base}/api/envs/project/proj-1/all`)
     assert.strictEqual(res.status, 200)
@@ -165,7 +165,7 @@ describe('Route Handlers - Envs', () => {
   })
 
   it('GET /project/:projectId/:key returns decrypted env value', async () => {
-    db.getEnv = async () => ({ encryptedValue: 'enc:my-secret', apiModeOnly: false })
+    db.getEnv = async () => ({ encryptedValue: 'enc:my-secret' })
     const res = await fetch(`${base}/api/envs/project/proj-1/API_KEY`)
     assert.strictEqual(res.status, 200)
     const data = await res.json()
@@ -183,21 +183,20 @@ describe('Route Handlers - Envs', () => {
 
   it('POST /project/:projectId creates env with encryption', async () => {
     let createdEnv: any = null
-    db.createEnv = async (projectId, key, encryptedValue, apiModeOnly) => {
-      createdEnv = { projectId, key, encryptedValue, apiModeOnly }
+    db.createEnv = async (projectId, key, encryptedValue) => {
+      createdEnv = { projectId, key, encryptedValue }
       return { id: 'env-new' }
     }
     const res = await fetch(`${base}/api/envs/project/proj-1`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: 'NEW_KEY', value: 'new-value', apiModeOnly: true }),
+      body: JSON.stringify({ key: 'NEW_KEY', value: 'new-value' }),
     })
     assert.strictEqual(res.status, 201)
     const data = await res.json()
     assert.strictEqual(data.id, 'env-new')
     assert.strictEqual(createdEnv.key, 'NEW_KEY')
     assert.strictEqual(createdEnv.encryptedValue, 'enc:new-value')
-    assert.strictEqual(createdEnv.apiModeOnly, true)
   })
 
   it('POST /project/:projectId rejects missing key', async () => {
@@ -224,13 +223,13 @@ describe('Route Handlers - Envs', () => {
 
   it('PUT /project/:projectId updates env', async () => {
     let updatedEnv: any = null
-    db.updateEnv = async (projectId, key, encryptedValue, apiModeOnly) => {
-      updatedEnv = { projectId, key, encryptedValue, apiModeOnly }
+    db.updateEnv = async (projectId, key, encryptedValue) => {
+      updatedEnv = { projectId, key, encryptedValue }
     }
     const res = await fetch(`${base}/api/envs/project/proj-1`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: 'EXISTING', value: 'updated-val', apiModeOnly: false }),
+      body: JSON.stringify({ key: 'EXISTING', value: 'updated-val' }),
     })
     assert.strictEqual(res.status, 200)
     const data = await res.json()
@@ -254,7 +253,7 @@ describe('Route Handlers - Envs', () => {
     let requestedKey: string | null = null
     db.getEnv = async (_projectId, key) => {
       requestedKey = key
-      return { encryptedValue: 'enc:val', apiModeOnly: false }
+      return { encryptedValue: 'enc:val' }
     }
     const res = await fetch(`${base}/api/envs/project/proj-1/${encodeURIComponent('MY KEY')}`)
     assert.strictEqual(res.status, 200)

@@ -67,8 +67,8 @@ describe('SqliteProvider - Projects', () => {
 
   it('deleteProject cascades to envs', async () => {
     const project = await db.createProject('cascade-test')
-    await db.createEnv(project.id, 'KEY1', 'encrypted-value-1', false)
-    await db.createEnv(project.id, 'KEY2', 'encrypted-value-2', true)
+    await db.createEnv(project.id, 'KEY1', 'encrypted-value-1')
+    await db.createEnv(project.id, 'KEY2', 'encrypted-value-2')
     
     await db.deleteProject(project.id)
     
@@ -109,17 +109,16 @@ describe('SqliteProvider - Envs', () => {
   })
 
   it('createEnv stores encrypted value', async () => {
-    const result = await db.createEnv(projectId, 'API_KEY', 'encrypted-abc123', false)
+    const result = await db.createEnv(projectId, 'API_KEY', 'encrypted-abc123')
     assert.ok(result.id)
   })
 
-  it('getEnv retrieves encrypted value and apiModeOnly', async () => {
-    await db.createEnv(projectId, 'SECRET', 'encrypted-xyz', true)
+  it('getEnv retrieves encrypted value', async () => {
+    await db.createEnv(projectId, 'SECRET', 'encrypted-xyz')
     const env = await db.getEnv(projectId, 'SECRET')
     
     assert.ok(env)
     assert.strictEqual(env?.encryptedValue, 'encrypted-xyz')
-    assert.strictEqual(env?.apiModeOnly, true)
   })
 
   it('getEnv returns null for missing key', async () => {
@@ -128,28 +127,26 @@ describe('SqliteProvider - Envs', () => {
   })
 
   it('updateEnv updates existing key', async () => {
-    await db.createEnv(projectId, 'KEY', 'old-value', false)
-    await db.updateEnv(projectId, 'KEY', 'new-value', true)
+    await db.createEnv(projectId, 'KEY', 'old-value')
+    await db.updateEnv(projectId, 'KEY', 'new-value')
     
     const env = await db.getEnv(projectId, 'KEY')
     assert.strictEqual(env?.encryptedValue, 'new-value')
-    assert.strictEqual(env?.apiModeOnly, true)
   })
 
   it('listEnvs returns all envs for project', async () => {
-    await db.createEnv(projectId, 'KEY_A', 'val-a', false)
-    await db.createEnv(projectId, 'KEY_B', 'val-b', true)
+    await db.createEnv(projectId, 'KEY_A', 'val-a')
+    await db.createEnv(projectId, 'KEY_B', 'val-b')
     
     const envs = await db.listEnvs(projectId)
     assert.strictEqual(envs.length, 2)
     // Sorted by key
     assert.strictEqual(envs[0].key, 'KEY_A')
     assert.strictEqual(envs[1].key, 'KEY_B')
-    assert.strictEqual(envs[1].apiModeOnly, true)
   })
 
   it('deleteEnv removes env', async () => {
-    await db.createEnv(projectId, 'TO_DELETE', 'value', false)
+    await db.createEnv(projectId, 'TO_DELETE', 'value')
     await db.deleteEnv(projectId, 'TO_DELETE')
     
     const env = await db.getEnv(projectId, 'TO_DELETE')

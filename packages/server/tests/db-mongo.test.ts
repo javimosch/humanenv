@@ -216,7 +216,7 @@ describe('MongoProvider Envs', () => {
   })
 
   it('createEnv upserts and returns id', async () => {
-    const result = await provider.createEnv('p1', 'DB_HOST', 'enc-val', false)
+    const result = await provider.createEnv('p1', 'DB_HOST', 'enc-val')
     assert.ok(result.id)
     const col = mockDb.collection('envs')
     assert.deepStrictEqual(col.lastUpdate?.filter, { projectId: 'p1', key: 'DB_HOST' })
@@ -226,12 +226,11 @@ describe('MongoProvider Envs', () => {
   it('getEnv returns mapped fields', async () => {
     mockDb.collection('envs').findOneResult = {
       id: 'e1', projectId: 'p1', key: 'SECRET',
-      encryptedValue: 'enc-xyz', apiModeOnly: true, createdAt: 1000,
+      encryptedValue: 'enc-xyz', createdAt: 1000,
     }
     const result = await provider.getEnv('p1', 'SECRET')
     assert.ok(result)
     assert.strictEqual(result!.encryptedValue, 'enc-xyz')
-    assert.strictEqual(result!.apiModeOnly, true)
   })
 
   it('getEnv returns null when not found', async () => {
@@ -242,13 +241,13 @@ describe('MongoProvider Envs', () => {
 
   it('listEnvs returns mapped array', async () => {
     mockDb.collection('envs').findResult = [
-      { id: 'e1', key: 'A_KEY', apiModeOnly: false, createdAt: 1000 },
-      { id: 'e2', key: 'B_KEY', apiModeOnly: true, createdAt: 2000 },
+      { id: 'e1', key: 'A_KEY', createdAt: 1000 },
+      { id: 'e2', key: 'B_KEY', createdAt: 2000 },
     ]
     const result = await provider.listEnvs('p1')
     assert.strictEqual(result.length, 2)
     assert.strictEqual(result[0].key, 'A_KEY')
-    assert.strictEqual(result[1].apiModeOnly, true)
+    assert.strictEqual(result[1].key, 'B_KEY')
   })
 
   it('deleteEnv removes by projectId and key', async () => {
