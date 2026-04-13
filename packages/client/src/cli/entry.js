@@ -12,13 +12,15 @@ const CREDENTIALS_DIR = path.join(os.homedir(), '.humanenv')
 
 // --json / -j detected before Commander strips args
 const isJson   = process.argv.includes('--json') || process.argv.includes('-j')
-const cleanArgs = process.argv.slice(2).filter(a => a !== '--json' && a !== '-j')
-const hasCmd   = ['auth', 'get', 'set', 'server'].some(c => cleanArgs.includes(c))
+const isForce = process.argv.includes('--force')
+const isInteractive = process.argv.includes('-i') || process.argv.includes('--interactive')
+const cleanArgs = process.argv.slice(2).filter(a => !['--json', '-j', '-i', '--interactive', '--force'].includes(a))
+const hasCmd   = ['auth', 'get', 'set', 'server', 'local'].some(c => cleanArgs.includes(c))
 const wantsHelp = cleanArgs.includes('--help') || cleanArgs.includes('-h')
 
 // Handle --help --json before anything else
 if (wantsHelp && isJson) {
-  const commandName = cleanArgs.find(a => ['auth', 'get', 'set', 'server'].includes(a))
+  const commandName = cleanArgs.find(a => ['auth', 'get', 'set', 'server', 'local'].includes(a))
   const commandsConfig = {
     'auth': {
       command: 'auth',
@@ -65,6 +67,26 @@ if (wantsHelp && isJson) {
         { flags: '-h, --help', description: 'Display help', required: false, optional: false, shorthand: 'h' }
       ],
       arguments: []
+    },
+    'local': {
+      command: 'local',
+      description: 'Local serverless mode (no server required)',
+      usage: 'humanenv local <subcommand>',
+      subcommands: [
+        'init - Initialize local database',
+        'get <key> - Get env value',
+        'set <key> <value> - Set env value',
+        'projects - Manage projects',
+        'envs - Manage envs',
+        'apikeys - Manage API keys',
+        'whitelist - Manage whitelist',
+        'export <file> - Export database',
+        'import <file> - Import database'
+      ],
+      options: [
+        { flags: '-i, --interactive', description: 'Interactive mode', required: false, optional: false, shorthand: null },
+        { flags: '--force', description: 'Skip confirmation prompts', required: false, optional: false, shorthand: null }
+      ]
     }
   }
   
@@ -75,10 +97,11 @@ if (wantsHelp && isJson) {
       command: 'humanenv',
       description: 'Secure environment variable injection',
       usage: 'humanenv [command] [options]',
-      commands: ['auth', 'get', 'set', 'server'],
+      commands: ['auth', 'get', 'set', 'server', 'local'],
       options: [
         { flags: '--json', description: 'Output in JSON format' },
         { flags: '-j', description: 'Shorthand for --json' },
+        { flags: '-i, --interactive', description: 'Interactive mode' },
         { flags: '-h, --help', description: 'Display help' }
       ]
     }, null, 2))
@@ -422,6 +445,157 @@ program
           'Server binary not found.',
           'Install humanenv-server or run from the monorepo.')
       }
+    }
+  })
+
+// ==========================================================
+// Local mode commands (serverless)
+// ==========================================================
+const localCommands = require('./local-commands')
+
+const localProgram = program
+  .command('local')
+  .description('Local serverless mode (no server required)')
+  .option('-i, --interactive', 'Use interactive mode')
+  .option('--force', 'Skip confirmation prompts')
+  .action(opts => {
+    if (!localCommands) {
+      failJson('LOCAL_NOT_AVAILABLE', 'Local commands not available.', 'Ensure dependencies are installed.')
+    }
+    console.error('Error: Specify a subcommand. Run "humanenv local --help" for options.')
+    process.exit(1)
+  })
+
+localProgram
+  .command('init')
+  .description('Initialize local database')
+  .option('--mnemonic <phrase>', 'Provide existing mnemonic (12 words)')
+  .option('--force', 'Reset existing database')
+  .action(async opts => {
+    if (!localCommands) {
+      failJson('LOCAL_NOT_AVAILABLE', 'Local commands not available.', 'Ensure dependencies are installed.')
+    }
+    try {
+      await localCommands.runLocalInit(opts.mnemonic, isInteractive || process.stdout.isTTY, isForce)
+    } catch (e) {
+      failJson('LOCAL_INIT_FAILED', e.message)
+    }
+  })
+
+localProgram
+  .command('get')
+  .description('Get an environment variable')
+  .argument('<key>', 'Environment variable key')
+  .action(async key => {
+    if (!localCommands) {
+      failJson('LOCAL_NOT_AVAILABLE', 'Local commands not available.', 'Ensure dependencies are installed.')
+    }
+    try {
+      await localCommands.runLocalGet(key, isInteractive || process.stdout.isTTY)
+    } catch (e) {
+      failJson('LOCAL_GET_FAILED', e.message)
+    }
+  })
+
+localProgram
+  .command('set')
+  .description('Set an environment variable')
+  .argument('<key>', 'Environment variable key')
+  .argument('<value>', 'Environment variable value')
+  .action(async (key, value) => {
+    if (!localCommands) {
+      failJson('LOCAL_NOT_AVAILABLE', 'Local commands not available.', 'Ensure dependencies are installed.')
+    }
+    try {
+      await localCommands.runLocalSet(key, value, isInteractive || process.stdout.isTTY, isForce)
+    } catch (e) {
+      failJson('LOCAL_SET_FAILED', e.message)
+    }
+  })
+
+localProgram
+  .command('projects')
+  .description('Manage projects')
+  .action(async () => {
+    if (!localCommands) {
+      failJson('LOCAL_NOT_AVAILABLE', 'Local commands not available.', 'Ensure dependencies are installed.')
+    }
+    try {
+      await localCommands.runLocalProjects(isInteractive || process.stdout.isTTY)
+    } catch (e) {
+      failJson('LOCAL_PROJECTS_FAILED', e.message)
+    }
+  })
+
+localProgram
+  .command('envs')
+  .description('Manage environment variables')
+  .action(async () => {
+    if (!localCommands) {
+      failJson('LOCAL_NOT_AVAILABLE', 'Local commands not available.', 'Ensure dependencies are installed.')
+    }
+    try {
+      await localCommands.runLocalEnvs(isInteractive || process.stdout.isTTY)
+    } catch (e) {
+      failJson('LOCAL_ENVS_FAILED', e.message)
+    }
+  })
+
+localProgram
+  .command('apikeys')
+  .description('Manage API keys')
+  .action(async () => {
+    if (!localCommands) {
+      failJson('LOCAL_NOT_AVAILABLE', 'Local commands not available.', 'Ensure dependencies are installed.')
+    }
+    try {
+      await localCommands.runLocalApiKeys(isInteractive || process.stdout.isTTY)
+    } catch (e) {
+      failJson('LOCAL_APIKEYS_FAILED', e.message)
+    }
+  })
+
+localProgram
+  .command('whitelist')
+  .description('Manage whitelist')
+  .action(async () => {
+    if (!localCommands) {
+      failJson('LOCAL_NOT_AVAILABLE', 'Local commands not available.', 'Ensure dependencies are installed.')
+    }
+    try {
+      await localCommands.runLocalWhitelist(isInteractive || process.stdout.isTTY)
+    } catch (e) {
+      failJson('LOCAL_WHITELIST_FAILED', e.message)
+    }
+  })
+
+localProgram
+  .command('export')
+  .description('Export database to file')
+  .argument('<file>', 'Export file path')
+  .action(async file => {
+    if (!localCommands) {
+      failJson('LOCAL_NOT_AVAILABLE', 'Local commands not available.', 'Ensure dependencies are installed.')
+    }
+    try {
+      await localCommands.runLocalExport(file, isInteractive || process.stdout.isTTY)
+    } catch (e) {
+      failJson('LOCAL_EXPORT_FAILED', e.message)
+    }
+  })
+
+localProgram
+  .command('import')
+  .description('Import database from file')
+  .argument('<file>', 'Import file path')
+  .action(async file => {
+    if (!localCommands) {
+      failJson('LOCAL_NOT_AVAILABLE', 'Local commands not available.', 'Ensure dependencies are installed.')
+    }
+    try {
+      await localCommands.runLocalImport(file, isInteractive || process.stdout.isTTY)
+    } catch (e) {
+      failJson('LOCAL_IMPORT_FAILED', e.message)
     }
   })
 
