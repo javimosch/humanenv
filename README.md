@@ -58,6 +58,55 @@ await humanenv.get(['A', 'B'])          # SDK: returns {A: "...", B: "..."}
 | `humanenv set KEY VALUE` | Store a secret |
 | `humanenv --json get KEY` | JSON output: `{"value": "..."}` |
 
+## Local Mode (Serverless)
+
+For single-machine setups, use `humanenv local` for serverless operation with local SQLite storage.
+
+### Quick Start
+
+```bash
+# 1. Initialize local database (one-time)
+humanenv local init
+
+# 2. Set secrets
+export HUMANENV_LOCAL_MNEMONIC="your 12-word mnemonic"
+humanenv local set API_KEY my-value --force
+
+# 3. Get secrets
+humanenv local get API_KEY
+```
+
+### Local Commands
+
+| Command | Description |
+|---------|-------------|
+| `humanenv local init` | Initialize local database |
+| `humanenv local get KEY` | Retrieve a secret |
+| `humanenv local set KEY VALUE` | Store a secret |
+| `humanenv local projects` | Manage projects |
+| `humanenv local envs` | Manage envs |
+| `humanenv local apikeys` | Manage API keys |
+| `humanenv local whitelist` | Manage whitelist |
+| `humanenv local export <file>` | Export database |
+| `humanenv local import <file>` | Import database |
+
+### Interactive Mode
+
+Run with `-i` for interactive menus:
+
+```bash
+humanenv local init -i
+humanenv local projects -i
+humanenv local envs -i
+```
+
+### Security
+
+- Admin commands (set, projects, apikeys, whitelist) require mnemonic authentication
+- Mnemonic is stored in `HUMANENV_LOCAL_MNEMONIC` env var (session-only, not persisted)
+- After 3 failed auth attempts, 1-minute lockout applies
+- Lock file at `~/.humanenv/.lock` can be removed by admin in emergencies
+
 ## Security Model
 
 | Layer | Implementation |
