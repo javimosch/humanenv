@@ -17,8 +17,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "better-sqlite3": "^11.7.0",
     "commander": "^12.1.0",
+    "inquirer": "^12.3.0",
     "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/inquirer": "^9.0.7"
   },
   "files": ["src/", "dist/"]
 }
