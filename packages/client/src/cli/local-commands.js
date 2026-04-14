@@ -23,6 +23,7 @@ const node_path_1 = __importDefault(require("node:path"));
 const node_os_1 = __importDefault(require("node:os"));
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_crypto_1 = __importDefault(require("node:crypto"));
+const child_process_1 = require("child_process");
 const humanenv_shared_1 = require("humanenv-shared");
 const humanenv_shared_2 = require("humanenv-shared");
 const inquirer_1 = __importDefault(require("inquirer"));
@@ -288,11 +289,41 @@ async function runLocalInit(mnemonic, isInteractive = false, force = false) {
         console.log('\n✓ Created default project');
     }
     console.log('\n✓ Local database initialized at ~/.humanenv/data.db');
-    console.log('\nYour mnemonic is:');
-    console.log(`  ${mnemonic}`);
-    console.log('\n⚠️  Save this mnemonic securely! It cannot be recovered.');
-    console.log('\nRun this command to export your mnemonic:');
-    console.log(`  export HUMANENV_LOCAL_MNEMONIC="${mnemonic}"`);
+    if (isInteractive) {
+        try {
+            if (process.platform === 'darwin') {
+                (0, child_process_1.execSync)(`echo -n "${mnemonic}" | pbcopy`, { stdio: 'ignore' });
+            }
+            else if (process.platform === 'linux') {
+                (0, child_process_1.execSync)(`echo -n "${mnemonic}" | xclip -selection clipboard`, { stdio: 'ignore' });
+            }
+            else {
+                throw new Error('Clipboard not supported on this platform');
+            }
+            console.log('\n✓ Mnemonic copied to clipboard');
+        }
+        catch {
+            console.log('\nYour mnemonic is:');
+            console.log(`  ${mnemonic}`);
+        }
+        const { confirmed } = await inquirer_1.default.prompt([
+            {
+                type: 'confirm',
+                name: 'confirmed',
+                message: 'Have you saved your mnemonic? (Press Enter to clear from screen)',
+                default: true
+            }
+        ]);
+        console.clear();
+        console.log('✓ Mnemonic cleared from screen. Keep it safe!');
+    }
+    else {
+        console.log('\nYour mnemonic is:');
+        console.log(`  ${mnemonic}`);
+        console.log('\n⚠️  Save this mnemonic securely! It cannot be recovered.');
+        console.log('\nRun this command to export your mnemonic:');
+        console.log(`  export HUMANENV_LOCAL_MNEMONIC="${mnemonic}"`);
+    }
     console.log('');
     await db.disconnect();
 }
@@ -555,7 +586,7 @@ async function runLocalEnvs(isInteractive) {
         case 'add':
             const { envKey, envValue } = await inquirer_1.default.prompt([
                 { type: 'input', name: 'envKey', message: 'Enter env key:' },
-                { type: 'input', name: 'envValue', message: 'Enter env value:' }
+                { type: 'password', name: 'envValue', message: 'Enter env value:', mask: '*' }
             ]);
             const encrypted = encrypt(envValue, session.pk, projectId, envKey);
             const existing = await session.db.getEnv(projectId, envKey);

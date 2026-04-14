@@ -2,6 +2,7 @@ import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
 import crypto from 'node:crypto'
+import { execSync } from 'child_process'
 import { LocalDatabase } from 'humanenv-shared'
 import { derivePkFromMnemonic, validateMnemonic, hashPkForVerification, encryptWithPk, decryptWithPk, generateFingerprint, generateMnemonic as genMnemonic } from 'humanenv-shared'
 import inquirer from 'inquirer'
@@ -303,13 +304,41 @@ export async function runLocalInit(mnemonic?: string, isInteractive = false, for
   }
 
   console.log('\n✓ Local database initialized at ~/.humanenv/data.db')
-  console.log('\nYour mnemonic is:')
-  console.log(`  ${mnemonic}`)
-  console.log('\n⚠️  Save this mnemonic securely! It cannot be recovered.')
-  console.log('\nRun this command to export your mnemonic:')
-  console.log(`  export HUMANENV_LOCAL_MNEMONIC="${mnemonic}"`)
-  console.log('')
 
+  if (isInteractive) {
+    try {
+      if (process.platform === 'darwin') {
+        execSync(`echo -n "${mnemonic}" | pbcopy`, { stdio: 'ignore' })
+      } else if (process.platform === 'linux') {
+        execSync(`echo -n "${mnemonic}" | xclip -selection clipboard`, { stdio: 'ignore' })
+      } else {
+        throw new Error('Clipboard not supported on this platform')
+      }
+      console.log('\n✓ Mnemonic copied to clipboard')
+    } catch {
+      console.log('\nYour mnemonic is:')
+      console.log(`  ${mnemonic}`)
+    }
+
+    const { confirmed } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'confirmed',
+        message: 'Have you saved your mnemonic? (Press Enter to clear from screen)',
+        default: true
+      }
+    ])
+    console.clear()
+    console.log('✓ Mnemonic cleared from screen. Keep it safe!')
+  } else {
+    console.log('\nYour mnemonic is:')
+    console.log(`  ${mnemonic}`)
+    console.log('\n⚠️  Save this mnemonic securely! It cannot be recovered.')
+    console.log('\nRun this command to export your mnemonic:')
+    console.log(`  export HUMANENV_LOCAL_MNEMONIC="${mnemonic}"`)
+  }
+
+  console.log('')
   await db.disconnect()
 }
 
@@ -598,7 +627,7 @@ export async function runLocalEnvs(isInteractive: boolean): Promise<void> {
     case 'add':
       const { envKey, envValue } = await inquirer.prompt([
         { type: 'input', name: 'envKey', message: 'Enter env key:' },
-        { type: 'input', name: 'envValue', message: 'Enter env value:' }
+        { type: 'password', name: 'envValue', message: 'Enter env value:', mask: '*' }
       ])
       const encrypted = encrypt(envValue, session.pk, projectId, envKey)
       const existing = await session.db.getEnv(projectId, envKey)
