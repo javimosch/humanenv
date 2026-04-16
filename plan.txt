@@ -1,0 +1,84 @@
+# HumanEnv Quick-Add Feature Plan
+
+## Overview
+
+Add anonymous, time-limited (24h) quick-add URLs that allow humans to create envs, API keys, and approve fingerprints via simple HTML pages. Used by agents when they need credentials that don't exist.
+
+## Context
+
+When an agent tries to get a secret that doesn't exist, instead of failing silently, we return a URL the human can open to create the missing credential. This unblocks agents without requiring them to explain what to do.
+
+## Beads Issues (supercli)
+
+| Issue | Title | Depends On |
+|-------|-------|-----------|
+| dcli-2p0 | Database layer for temp_tokens | - |
+| dcli-2ms | Core token generation logic | dcli-2p0 |
+| dcli-3hc | Quick-add HTML forms and POST handlers | dcli-2ms |
+| dcli-nly | WebSocket handler updates to generate tokens | dcli-2ms |
+| dcli-e57 | Error codes for ENV_KEY_MISSING and WHITELIST_PENDING | - |
+| dcli-2mj | SDK updates to attach quickAddUrl to errors | dcli-e57 |
+| dcli-3fk | CLI updates for local mode quick-add command | dcli-2ms |
+| dcli-1c1 | Update SKILL.md with quick-add documentation | dcli-2mj |
+
+## Implementation Order
+
+1. **DB layer** (dcli-2p0) - Add temp_tokens table/schema (SQLite + MongoDB)
+2. **Core logic** (dcli-2ms) - Token generation, verify, mark used
+3. **Routes** (dcli-3hc) - HTML forms + POST handlers (env, apikey, whitelist)
+4. **WebSocket** (dcli-nly) - Generate tokens on missing keys/whitelist
+5. **Error codes** (dcli-e57) - ENV_KEY_MISSING, WHITELIST_PENDING
+6. **SDK** (dcli-2mj) - Attach quickAddUrl to errors
+7. **CLI** (dcli-3fk) - Local mode quick-add command
+8. **Docs** (dcli-1c1) - Update SKILL.md
+
+## Files
+
+### Database Layer (dcli-2p0)
+- `packages/server/src/db/interface.ts` - Add TempToken interface + methods
+- `packages/server/src/db/sqlite.ts` - Add temp_tokens table
+- `packages/server/src/db/mongo.ts` - Add tempTokens collection
+
+### Core Logic (dcli-2ms)
+- `packages/server/src/quick-add.ts` - Token generation (24h expiry)
+
+### Routes (dcli-3hc)
+- `packages/server/src/routes/quick-add.ts` - HTML forms + handlers
+- `packages/server/src/index.ts` - Register /api/quick-add router
+
+### WebSocket (dcli-nly)
+- `packages/server/src/ws/router.ts` - Generate tokens on missing keys/whitelist
+
+### Error Codes (dcli-e57)
+- `packages/shared/src/errors.ts` - ENV_KEY_MISSING, WHITELIST_PENDING
+- `packages/client/src/shared/errors.ts` - Same error codes
+
+### SDK (dcli-2mj)
+- `packages/client/src/ws-manager.ts` - Attach quickAddUrl to errors
+
+### CLI (dcli-3fk)
+- `packages/client/src/cli/local-commands.ts` - ENV_KEY_MISSING for local mode
+
+### Docs (dcli-1c1)
+- `plugins/humanenv/skills/quickstart/SKILL.md` - Document quick-add flow
+
+## Quick-Add URLs
+
+### Server Mode
+When agent requests missing key:
+```
+Error: { code: "ENV_KEY_MISSING", quickAddUrl: "http://server:3056/api/quick-add/env/:token" }
+```
+
+### Local Mode
+When agent requests missing key:
+```
+Error: { code: "ENV_KEY_MISSING", quickAddCommand: "humanenv local set KEY <value>" }
+```
+
+## Token Design
+
+- **Expiry**: 24 hours
+- **Storage**: Hashed token in DB (plain token in URL)
+- **Actions**: env, apikey, whitelist
+- **One-time use**: Marked as used after successful action
