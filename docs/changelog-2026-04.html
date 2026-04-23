@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Changelog April 2026 - humanenv</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      body { font-family: 'Inter', system-ui, sans-serif; background-color: #0a0a0b; color: #e2e8f0; }
+      h1, h2, h3 { font-family: 'Geist', system-ui, sans-serif; }
+      .tab-btn { transition: all 0.2s ease; }
+      .tab-btn.active { background-color: #1a1a1d; border-color: #3b82f6; color: #fff; }
+      .tab-content { display: none; animation: fadeIn 0.3s ease; }
+      .tab-content.active { display: block; }
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+      .feature-card { background: linear-gradient(135deg, #1a1a1d 0%, #151517 100%); border: 1px solid #262629; transition: all 0.3s ease; }
+      .feature-card:hover { border-color: #3b82f6; transform: translateY(-2px); }
+    </style>
+  </head>
+  <body class="bg-[#0a0a0b] min-h-screen">
+    <div class="max-w-5xl mx-auto px-6 py-16">
+      <header class="mb-16">
+        <a href="changelog.html" class="text-blue-400 hover:text-blue-300 text-sm mb-6 inline-block transition-colors">&larr; Back to Changelog</a>
+        <h1 class="text-5xl font-bold text-white mt-4 tracking-tight">Changelog</h1>
+        <p class="text-slate-400 mt-3 text-lg">April 2026</p>
+        
+        <!-- Tabs -->
+        <div class="flex gap-2 mt-8">
+          <button onclick="switchTab('product')" id="tab-product" class="tab-btn active px-5 py-2.5 rounded-lg border border-slate-700 text-slate-300 font-medium text-sm hover:border-slate-600">
+            Product
+          </button>
+          <button onclick="switchTab('technical')" id="tab-technical" class="tab-btn px-5 py-2.5 rounded-lg border border-slate-700 text-slate-300 font-medium text-sm hover:border-slate-600">
+            Technical
+          </button>
+        </div>
+      </header>
+
+      <!-- Product Changelog -->
+      <div id="content-product" class="tab-content active">
+
+        <div class="feature-card rounded-xl p-6">
+          <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+              <span class="text-2xl">🐍</span>
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold text-white mb-2">Python SDK</h3>
+              <p class="text-slate-400 leading-relaxed">Added Python SDK for humanenv with skill integration for AI agents. Enables Python applications to securely fetch secrets using the same security model as the Node.js SDK.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="feature-card rounded-xl p-6">
+          <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+              <span class="text-2xl">�</span>
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold text-white mb-2">Local Serverless Mode</h3>
+              <p class="text-slate-400 leading-relaxed">Implemented serverless mode with SQLite storage for single-machine setups. Includes CLI commands for init, get, set, projects, envs, apikeys, whitelist, export, and import with mnemonic-based authentication.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="feature-card rounded-xl p-6">
+          <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+              <span class="text-2xl">�</span>
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold text-white mb-2">Enhanced API Key Management</h3>
+              <p class="text-slate-400 leading-relaxed">Added optional API key naming, last-used tracking, and project-level requireApiKey setting. Improved key usage tracking with periodic flush and shutdown cleanup.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="feature-card rounded-xl p-6">
+          <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+              <span class="text-2xl">�</span>
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold text-white mb-2">Security Enhancements</h3>
+              <p class="text-slate-400 leading-relaxed">Added fingerprint verification toggle with whitelist tab visibility control. Implemented temporal PK persistence with project-based salt and global settings key-value store.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="feature-card rounded-xl p-6">
+          <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+              <span class="text-2xl">🧪</span>
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold text-white mb-2">Comprehensive Testing</h3>
+              <p class="text-slate-400 leading-relaxed">Added 354 tests across client, server, and CLI packages. Includes unit tests for MongoProvider, SqliteProvider, HumanEnvClient lifecycle, route handlers, and WebSocket connections.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Technical Changelog -->
+      <div id="content-technical" class="tab-content">
+        <div class="space-y-8">
+
+        <section>
+          <h2 class="text-2xl font-semibold text-brand-400 mb-4 flex items-center gap-2">
+            <span>🚀</span> Features
+          </h2>
+          <ul class="space-y-2 text-slate-300">
+            <li><span class="text-slate-500 text-sm mr-3">[14/04]</span>feat: Improve mnemonic handling with clipboard support and confirmation prompt</li>
+            <li><span class="text-slate-500 text-sm mr-3">[13/04]</span>feat: Add database management scripts for MongoDB and SQLite</li>
+            <li><span class="text-slate-500 text-sm mr-3">[13/04]</span>feat: Add security fingerprint determinism tests for generateFingerprint function</li>
+            <li><span class="text-slate-500 text-sm mr-3">[13/04]</span>feat: Add error handling, local database module, and types to shared package</li>
+            <li><span class="text-slate-500 text-sm mr-3">[13/04]</span>feat: Add shared error types and utilities for the client package</li>
+            <li><span class="text-slate-500 text-sm mr-3">[13/04]</span>feat: Add shared crypto and types modules to client package</li>
+            <li><span class="text-slate-500 text-sm mr-3">[13/04]</span>feat: Add initial client package with HumanEnvClient and singleton API</li>
+            <li><span class="text-slate-500 text-sm mr-3">[13/04]</span>feat: Add local serverless mode CLI commands with init, get, set, projects, envs, apikeys, whitelist, export, and import subcommands</li>
+            <li><span class="text-slate-500 text-sm mr-3">[13/04]</span>feat: Add pre-compilation step for local-commands.ts and update dependencies</li>
+            <li><span class="text-slate-500 text-sm mr-3">[10/04]</span>feat: Add rename functionality for projects and remove api-mode-only from envs</li>
+            <li><span class="text-slate-500 text-sm mr-3">[09/04]</span>feat: Relax env access restrictions for authenticated clients, commenting out CLI-only blocking logic</li>
+            <li><span class="text-slate-500 text-sm mr-3">[09/04]</span>feat: Add database management scripts (MongoDB and SQLite)</li>
+            <li><span class="text-slate-500 text-sm mr-3">[09/04]</span>feat: Add crypto module with mnemonic and encryption utilities</li>
+            <li><span class="text-slate-500 text-sm mr-3">[09/04]</span>feat: Add manage.js script for remote deployment and environment management</li>
+            <li><span class="text-slate-500 text-sm mr-3">[09/04]</span>feat: Add staging deployment configuration and documentation</li>
+            <li><span class="text-slate-500 text-sm mr-3">[08/04]</span>feat: Add Python SDK skill for AI agents</li>
+            <li><span class="text-slate-500 text-sm mr-3">[08/04]</span>feat: Add Python SDK for humanenv</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>feat: Add WebSocket test helpers for mocking client connections</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>feat: Add route-test-helpers.ts with mock database, PK manager, and app setup utilities</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>feat: Add comprehensive unit tests for route handlers covering projects, envs, API keys, whitelist, and global settings</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>feat: Add .env viewer modal with error handling in admin UI</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>feat: Add bulk decrypt endpoint for .env export</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>feat: Add listEnvsWithValues method to IDatabaseProvider and implement in Mongo/Sqlite providers</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>feat: Implement temporal PK persistence and global settings router</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>feat: Add global settings key-value store and API routes</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>feat: Refactor CLI authentication and credential display logic across packages</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>feat: Track API key usage with periodic flush and shutdown cleanup</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>feat: Add API key management enhancements including optional key naming, last used tracking, and project-level requireApiKey setting</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>feat: Add fingerprint verification toggle with whitelist tab visibility control</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>feat: Conditionally verify fingerprint based on project setting</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>feat: Add PUT endpoint to update project fingerprint verification status</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>feat: Add fingerprint verification to projects table and implement update method</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>feat: Add fingerprintVerification field to projects and updateProject method</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>feat: Enhance environment variable management with input sanitization, copy functionality, and toast notifications</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>feat: Add GET endpoint for fetching decrypted project environment variable</li>
+            <li><span class="text-slate-500 text-sm mr-3">[02/04]</span>feat: Implement enhanced CLI error handling and JSON output for all commands</li>
+            <li><span class="text-slate-500 text-sm mr-3">[02/04]</span>feat: Add 'server' subcommand and improve CLI help/behavior</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold text-red-400 mb-4 flex items-center gap-2">
+            <span>🐛</span> Bug Fixes
+          </h2>
+          <ul class="space-y-2 text-slate-300">
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>fix: Adjust API key validation to respect project.requireApiKey setting</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>fix: Update data directory paths and environment variables for deployment consistency</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>fix: Output JSON responses to stdout instead of stderr</li>
+            <li><span class="text-slate-500 text-sm mr-3">[02/04]</span>fix: Prevent reconnection during disconnection and add disconnecting state</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold text-emerald-400 mb-4 flex items-center gap-2">
+            <span>📚</span> Documentation
+          </h2>
+          <ul class="space-y-2 text-slate-300">
+            <li><span class="text-slate-500 text-sm mr-3">[17/04]</span>docs: Add quick-add feature plan</li>
+            <li><span class="text-slate-500 text-sm mr-3">[13/04]</span>docs: Add comprehensive documentation for Local Mode (serverless) with SQLite storage</li>
+            <li><span class="text-slate-500 text-sm mr-3">[10/04]</span>docs: Remove CLI restriction feature from documentation</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>docs: Update README.md for external CLI example with improved structure and examples</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>docs: Refactor reset database plan with clearer structure and endpoints</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>docs: Rewrite review.md to reflect architecture overview and updated test coverage</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>docs: Simplify and modernize Docker deployment documentation</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>docs: Refactor AGENTS_FRIENDLY_TOOLS.md for structured CLI design guidance</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>docs: Revise README.md for clarity, quick start, and security model</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>docs: Update test plan with refactored test files and script example</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>docs: Update test plan with dashboard view and infrastructure details</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>docs: Update HumanEnv implementation review with current status</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>docs: Refactor and condense Docker deployment guide for clarity and brevity</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>docs: Refactor AGENTS_FRIENDLY_TOOLS.md into concise guide</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>docs: Rewrite README to focus on AI agent security threat and solution</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold text-amber-400 mb-4 flex items-center gap-2">
+            <span>🚜</span> Refactor
+          </h2>
+          <ul class="space-y-2 text-slate-300">
+            <li><span class="text-slate-500 text-sm mr-3">[10/04]</span>refactor: Improve ID generation in test mocks by using a helper function</li>
+            <li><span class="text-slate-500 text-sm mr-3">[10/04]</span>refactor: Remove apiModeOnly field from environment operations and tests</li>
+            <li><span class="text-slate-500 text-sm mr-3">[10/04]</span>refactor: Remove unused API mode error handling in CLI entry</li>
+            <li><span class="text-slate-500 text-sm mr-3">[10/04]</span>refactor: Remove API mode-only feature and simplify env management</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>refactor: Simplify reconnection tests using shared test helpers</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>refactor: Simplify test setup by moving MockWebSocket and helpers to ws-test-helpers.ts</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>refactor: Add optional status field to AuthResponse interface</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>refactor: Update temporal PK logic to use project-based salt and store DB reference</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>refactor: Remove deprecated API key generation logic from websocket router</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>refactor: Remove unused generateApiKey method from HumanEnvClient</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>refactor: Remove unused 'generate_api_key' message type from WebSocket types</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>refactor: Remove --generate-api-key option from auth command and simplify authentication logic</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>refactor: Add fingerprintVerification to project interface and introduce updateProject method</li>
+            <li><span class="text-slate-500 text-sm mr-3">[02/04]</span>refactor: Add admin whitelist URL to auth output and error messages</li>
+            <li><span class="text-slate-500 text-sm mr-3">[02/04]</span>refactor: Rewrite CLI entry point for improved argument handling and command structure</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold text-blue-400 mb-4 flex items-center gap-2">
+            <span>🧪</span> Testing
+          </h2>
+          <ul class="space-y-2 text-slate-300">
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>test: Add comprehensive test suite for SqliteProvider extended functionality</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>test: Add comprehensive unit tests for MongoProvider using mocks</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>test: Add comprehensive unit tests for HumanEnvClient lifecycle and messaging</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>test: Add comprehensive tests for API keys, whitelist, and global settings routes</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>test: Add route handlers tests for projects and environments</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="text-2xl font-semibold text-slate-400 mb-4 flex items-center gap-2">
+            <span>⚙️</span> Miscellaneous Tasks
+          </h2>
+          <ul class="space-y-2 text-slate-300">
+            <li><span class="text-slate-500 text-sm mr-3">[13/04]</span>chore: Add comprehensive test suites for client and server packages</li>
+            <li><span class="text-slate-500 text-sm mr-3">[13/04]</span>chore: Add test files and TypeScript config for shared crypto module</li>
+            <li><span class="text-slate-500 text-sm mr-3">[13/04]</span>chore: Add CLI test suite with credentials, skill file, command parsing, TTY detection, and error handling tests</li>
+            <li><span class="text-slate-500 text-sm mr-3">[09/04]</span>chore: Add 'cloud' directory to .gitignore</li>
+            <li><span class="text-slate-500 text-sm mr-3">[09/04]</span>chore: Add dev and docker scripts for PK and database management</li>
+            <li><span class="text-slate-500 text-sm mr-3">[09/04]</span>chore: Add script copying and SQLite dependency, update Temporal PK default to true</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>chore: Update test plan documentation with 354 tests and improved structure</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>chore: Update test plan documentation with new test counts and added test file</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>chore: Update test plan to reflect 292/310 tests implemented across 22 files, adding db-mongo.test.ts</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>chore: Update test coverage statistics in test-plan.md to 93% (255/273 tests)</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>chore: Delete comprehensive route handler tests for Projects, Envs, API Keys, Whitelist, and Global Settings</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>chore: Simplify README for external-cli-example with clearer setup and usage patterns</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>chore: Refactor reset-db-plan.md into concise implementation guide</li>
+            <li><span class="text-slate-500 text-sm mr-3">[07/04]</span>chore: Add .opencode to .gitignore</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>chore: Bump version from 0.1.2 to 0.1.3</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>chore: Bump version from 0.1.1 to 0.1.2</li>
+            <li><span class="text-slate-500 text-sm mr-3">[03/04]</span>chore: Bump version from 0.1.0 to 0.1.1</li>
+            <li><span class="text-slate-500 text-sm mr-3">[02/04]</span>chore: Remove "private" field from package.json</li>
+            <li><span class="text-slate-500 text-sm mr-3">[02/04]</span>chore: Add .npmignore configuration file to specify files excluded from npm package</li>
+            <li><span class="text-slate-500 text-sm mr-3">[02/04]</span>chore: Remove local 'humanenv' client dependency from CLI package.json</li>
+          </ul>
+        </section>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function switchTab(tab) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById('content-' + tab).classList.add('active');
+        document.getElementById('tab-' + tab).classList.add('active');
+      }
+    </script>
+  </body>
+</html>
