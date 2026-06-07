@@ -86,6 +86,11 @@ async function main() {
   app.use('/api/whitelist', createWhitelistRouter(db))
   app.use('/api/global', createGlobalSettingsRouter(db))
 
+  // Health endpoint (required by Dockerfile HEALTHCHECK)
+  app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', pk: pk.isReady(), uptime: process.uptime() })
+  })
+
   // PK setup endpoints
   app.post('/api/pk/setup', async (req, res) => {
     const { mnemonic } = req.body || {}
@@ -124,7 +129,10 @@ async function main() {
   app.set('view engine', 'ejs')
   app.set('views', path.join(__dirname, 'views'))
 
+  let shuttingDown = false
   const shutdown = async (signal: string) => {
+    if (shuttingDown) return
+    shuttingDown = true
     console.log(`\nReceived ${signal}, shutting down gracefully...`)
     const forceExit = setTimeout(() => {
       console.error('Forced exit after timeout')
