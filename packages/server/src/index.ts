@@ -86,11 +86,6 @@ async function main() {
   app.use('/api/whitelist', createWhitelistRouter(db))
   app.use('/api/global', createGlobalSettingsRouter(db))
 
-  // Health endpoint (required by Dockerfile HEALTHCHECK)
-  app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', pk: pk.isReady(), uptime: process.uptime() })
-  })
-
   // PK setup endpoints
   app.post('/api/pk/setup', async (req, res) => {
     const { mnemonic } = req.body || {}
