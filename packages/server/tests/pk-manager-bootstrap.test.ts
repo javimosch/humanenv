@@ -20,6 +20,7 @@ describe('PkManager.bootstrap', () => {
     } else {
       delete process.env.HUMANENV_MNEMONIC
     }
+    mock.restoreAll()
   })
 
   it('returns needs_input when no stored hash and no env var', async () => {
@@ -99,8 +100,6 @@ describe('PkManager.bootstrap', () => {
     assert.strictEqual(result.status, 'ready')
     assert.strictEqual(consoleWarnMock.mock.callCount(), 1)
     assert.ok(consoleWarnMock.mock.calls[0].arguments[0].includes('does not match'))
-    
-    consoleWarnMock.restore()
   })
 
   it('logs success message when PK restored from env', async () => {
@@ -114,7 +113,5 @@ describe('PkManager.bootstrap', () => {
     
     assert.strictEqual(consoleLogMock.mock.callCount(), 1)
     assert.ok(consoleLogMock.mock.calls[0].arguments[0].includes('PK restored'))
-    
-    consoleLogMock.restore()
   })
 })
