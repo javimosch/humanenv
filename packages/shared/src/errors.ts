@@ -7,6 +7,7 @@ export enum ErrorCode {
   SERVER_INTERNAL_ERROR = 'SERVER_INTERNAL_ERROR',
   WS_CONNECTION_FAILED = 'WS_CONNECTION_FAILED',
   DB_OPERATION_FAILED = 'DB_OPERATION_FAILED',
+  ENV_API_MODE_ONLY = 'ENV_API_MODE_ONLY',
 }
 
 export const ErrorMessages: Record<ErrorCode, string> = {
@@ -18,6 +19,7 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   SERVER_INTERNAL_ERROR: 'An internal server error occurred.',
   WS_CONNECTION_FAILED: 'Failed to establish WebSocket connection.',
   DB_OPERATION_FAILED: 'Database operation failed.',
+  ENV_API_MODE_ONLY: 'This environment variable is only accessible via API mode.',
 }
 
 export class HumanEnvError extends Error {

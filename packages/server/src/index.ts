@@ -55,6 +55,12 @@ async function main() {
 
   app.use(express.json())
 
+  // Health endpoint MUST be registered before any auth middleware
+  // so Docker healthcheck and load balancers can reach it unauthenticated
+  app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', timestamp: Date.now() })
+  })
+
   // Basic auth for admin UI
   if (BASIC_AUTH_ARG) {
     const username = process.env.BASIC_AUTH_USERNAME || 'admin'
@@ -110,9 +116,14 @@ async function main() {
   app.set('view engine', 'ejs')
   app.set('views', path.join(__dirname, 'views'))
 
+  let shuttingDown = false
   const shutdown = async (signal: string) => {
+    if (shuttingDown) return
+    shuttingDown = true
     console.log(`\nReceived ${signal}, shutting down gracefully...`)
-    await pk.saveTemporalPk()
+    try { await pk.saveTemporalPk() } catch {}
+    try { await wsRouter.shutdown() } catch {}
+    try { await db.disconnect() } catch {}
     server.close(() => {
       process.exit(0)
     })

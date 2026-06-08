@@ -99,3 +99,5 @@ temp/
 # Generated Skills (runtime-generated, not committed)
 # ============================================================
 .agents/skills/humanenv-usage/SKILL.md
+
+.claude/

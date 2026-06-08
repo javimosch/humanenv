@@ -43,6 +43,7 @@ export function generateMnemonic(): string {
 }
 
 export function validateMnemonic(mnemonic: string): boolean {
+  if (typeof mnemonic !== 'string') return false
   const words = mnemonic.trim().toLowerCase().split(/\s+/)
   if (words.length !== 12) return false
   return words.every(w => BIP39_WORDLIST.includes(w))
