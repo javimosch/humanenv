@@ -121,9 +121,9 @@ async function main() {
     if (shuttingDown) return
     shuttingDown = true
     console.log(`\nReceived ${signal}, shutting down gracefully...`)
-    try { await pk.saveTemporalPk() } catch {}
-    try { await wsRouter.shutdown() } catch {}
-    try { await db.disconnect() } catch {}
+    try { await pk.saveTemporalPk() } catch (e) { console.error('Failed to save temporal PK:', e instanceof Error ? e.message : 'unknown') }
+    try { await wsRouter.shutdown() } catch (e) { console.error('WS shutdown error:', e instanceof Error ? e.message : 'unknown') }
+    try { await db.disconnect() } catch (e) { console.error('DB disconnect error:', e instanceof Error ? e.message : 'unknown') }
     server.close(() => {
       process.exit(0)
     })
