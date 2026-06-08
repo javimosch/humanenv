@@ -3,6 +3,7 @@ import { IncomingMessage } from 'http'
 import { IDatabaseProvider } from '../db/interface'
 import { PkManager } from '../pk-manager'
 import { ErrorCode, HumanEnvError, ErrorMessages, WsMessage, AuthResponse } from 'humanenv-shared'
+import { RateLimiter, WS_AUTH_RATE_LIMIT } from '../rate-limit'
 
 type PendingRequestResolver = { resolve: (msg: any) => void; reject: (e: any) => void; timeout: ReturnType<typeof setTimeout> }
 
@@ -10,10 +11,11 @@ export class WsRouter {
   private wss: WebSocketServer
   private pendingRequests = new Map<string, PendingRequestResolver>()
   private adminClients = new Set<WebSocket>()
-  private clientSessions = new Map<WebSocket, { projectName: string; fingerprint: string; authenticated: boolean }>()
+  private clientSessions = new Map<WebSocket, { projectName: string; fingerprint: string; authenticated: boolean; ip: string }>()
   private autoAcceptApiKey = false
   private lastUsedMap = new Map<string, number>()
   private lastUsedFlushInterval: ReturnType<typeof setInterval>
+  private wsAuthLimiter = new RateLimiter(WS_AUTH_RATE_LIMIT)
 
   constructor(
     private server: any,
@@ -28,6 +30,7 @@ export class WsRouter {
   async shutdown(): Promise<void> {
     clearInterval(this.lastUsedFlushInterval)
     await this.flushLastUsed()
+    this.wsAuthLimiter.destroy()
   }
 
   private async flushLastUsed(): Promise<void> {
@@ -101,10 +104,11 @@ export class WsRouter {
     }
 
     // Client SDK connects to /ws
-    this.setupClient(ws)
+    const ip = req.socket.remoteAddress || 'unknown'
+    this.setupClient(ws, ip)
   }
 
-  private setupClient(ws: WebSocket): void {
+  private setupClient(ws: WebSocket, ip: string): void {
     let authState: { projectName: string; fingerprint: string } | null = null
     let authenticated = false
 
@@ -129,6 +133,16 @@ export class WsRouter {
       switch (msg.type) {
         case 'auth': {
           const { projectName, apiKey, fingerprint } = msg.payload as any
+
+          // Rate limit by IP + fingerprint
+          const fp = fingerprint || 'no-fp'
+          const rateLimitKey = `${ip}:${fp}`
+          const rateLimitResult = this.wsAuthLimiter.check(rateLimitKey)
+          if (!rateLimitResult.allowed) {
+            send({ type: 'auth_response', payload: { success: false, whitelisted: false, error: 'Too many authentication attempts', code: ErrorCode.CLIENT_AUTH_INVALID_API_KEY } })
+            return
+          }
+
           const project = await this.db.getProject(projectName)
           if (!project) {
             send({ type: 'auth_response', payload: { success: false, whitelisted: false, error: ErrorMessages.CLIENT_AUTH_INVALID_PROJECT_NAME, code: ErrorCode.CLIENT_AUTH_INVALID_PROJECT_NAME } })

@@ -1,11 +1,14 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert'
 import { createBasicAuthMiddleware } from '../src/auth.ts'
+import { RateLimiter } from '../src/rate-limit.ts'
 
 // Mock Express request/response objects
 function createMockRequest(authHeader?: string) {
   const req: any = {
     headers: {},
+    ip: '127.0.0.1',
+    socket: { remoteAddress: '127.0.0.1' },
   }
   if (authHeader) {
     req.headers.authorization = authHeader
@@ -38,8 +41,10 @@ describe('createBasicAuthMiddleware', () => {
   const testUsername = 'testuser'
   const testPassword = 'testpass123'
 
+  const freshLimiter = () => new RateLimiter({ maxAttempts: 100, windowMs: 60_000 })
+
   it('calls next() with valid credentials', () => {
-    const middleware = createBasicAuthMiddleware(testUsername, testPassword)
+    const middleware = createBasicAuthMiddleware(testUsername, testPassword, freshLimiter())
     const req = createMockRequest(
       'Basic ' + Buffer.from(`${testUsername}:${testPassword}`).toString('base64')
     )
@@ -55,7 +60,7 @@ describe('createBasicAuthMiddleware', () => {
   })
 
   it('returns 401 with missing credentials', () => {
-    const middleware = createBasicAuthMiddleware(testUsername, testPassword)
+    const middleware = createBasicAuthMiddleware(testUsername, testPassword, freshLimiter())
     const req = createMockRequest() // No auth header
     const res = createMockResponse()
     let nextCalled = false
@@ -71,7 +76,7 @@ describe('createBasicAuthMiddleware', () => {
   })
 
   it('returns 401 with invalid username', () => {
-    const middleware = createBasicAuthMiddleware(testUsername, testPassword)
+    const middleware = createBasicAuthMiddleware(testUsername, testPassword, freshLimiter())
     const req = createMockRequest(
       'Basic ' + Buffer.from(`wronguser:${testPassword}`).toString('base64')
     )
@@ -88,7 +93,7 @@ describe('createBasicAuthMiddleware', () => {
   })
 
   it('returns 401 with invalid password', () => {
-    const middleware = createBasicAuthMiddleware(testUsername, testPassword)
+    const middleware = createBasicAuthMiddleware(testUsername, testPassword, freshLimiter())
     const req = createMockRequest(
       'Basic ' + Buffer.from(`${testUsername}:wrongpass`).toString('base64')
     )
@@ -105,7 +110,7 @@ describe('createBasicAuthMiddleware', () => {
   })
 
   it('returns 401 with malformed auth header', () => {
-    const middleware = createBasicAuthMiddleware(testUsername, testPassword)
+    const middleware = createBasicAuthMiddleware(testUsername, testPassword, freshLimiter())
     const req = createMockRequest('InvalidFormat')
     const res = createMockResponse()
     let nextCalled = false
@@ -119,7 +124,7 @@ describe('createBasicAuthMiddleware', () => {
   })
 
   it('returns 401 with empty auth header', () => {
-    const middleware = createBasicAuthMiddleware(testUsername, testPassword)
+    const middleware = createBasicAuthMiddleware(testUsername, testPassword, freshLimiter())
     const req = createMockRequest('Basic ')
     const res = createMockResponse()
     let nextCalled = false
@@ -135,7 +140,7 @@ describe('createBasicAuthMiddleware', () => {
   it('handles special characters in credentials', () => {
     const specialUser = 'user@domain.com'
     const specialPass = 'p@ss!w0rd#$%'
-    const middleware = createBasicAuthMiddleware(specialUser, specialPass)
+    const middleware = createBasicAuthMiddleware(specialUser, specialPass, freshLimiter())
     const req = createMockRequest(
       'Basic ' + Buffer.from(`${specialUser}:${specialPass}`).toString('base64')
     )
@@ -152,7 +157,7 @@ describe('createBasicAuthMiddleware', () => {
   it('handles unicode characters in credentials', () => {
     const unicodeUser = '用户'
     const unicodePass = '密码 123'
-    const middleware = createBasicAuthMiddleware(unicodeUser, unicodePass)
+    const middleware = createBasicAuthMiddleware(unicodeUser, unicodePass, freshLimiter())
     const req = createMockRequest(
       'Basic ' + Buffer.from(`${unicodeUser}:${unicodePass}`).toString('base64')
     )

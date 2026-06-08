@@ -1,10 +1,11 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { createBasicAuthMiddleware } from '../src/auth.ts'
+import { RateLimiter } from '../src/rate-limit.ts'
 
 // Mock Express request/response
 function createMockRequest(authHeader?: string) {
-  const req: any = { headers: {} }
+  const req: any = { headers: {}, ip: '127.0.0.1', socket: { remoteAddress: '127.0.0.1' } }
   if (authHeader) {
     req.headers.authorization = authHeader
   }
@@ -35,9 +36,9 @@ function createMockResponse() {
 describe('Security - Auth Timing Attack Resistance', () => {
   const username = 'admin'
   const password = 'securepassword123'
-  const middleware = createBasicAuthMiddleware(username, password)
 
   it('similar response time for invalid username vs invalid password', () => {
+    const middleware = createBasicAuthMiddleware(username, password, new RateLimiter({ maxAttempts: 100, windowMs: 60_000 }))
     // Test that auth fails fast for both cases (constant-time-ish)
     const invalidUsernameReq = createMockRequest(
       'Basic ' + Buffer.from(`wronguser:${password}`).toString('base64')
@@ -71,6 +72,7 @@ describe('Security - Auth Timing Attack Resistance', () => {
   })
 
   it('same error response for all auth failures', () => {
+    const middleware = createBasicAuthMiddleware(username, password, new RateLimiter({ maxAttempts: 100, windowMs: 60_000 }))
     const testCases = [
       { req: createMockRequest(), desc: 'no credentials' },
       { req: createMockRequest('Basic invalid'), desc: 'malformed credentials' },
@@ -168,9 +170,9 @@ describe('Security - Brute Force Detection Pattern', () => {
 describe('Security - Error Message Safety', () => {
   const username = 'admin'
   const password = 'securepassword123'
-  const middleware = createBasicAuthMiddleware(username, password)
 
   it('does not leak whether username exists', () => {
+    const middleware = createBasicAuthMiddleware(username, password, new RateLimiter({ maxAttempts: 100, windowMs: 60_000 }))
     const existingUsernameReq = createMockRequest(
       'Basic ' + Buffer.from(`admin:wrongpass`).toString('base64')
     )
@@ -191,6 +193,7 @@ describe('Security - Error Message Safety', () => {
   })
 
   it('does not leak internal state in error messages', () => {
+    const middleware = createBasicAuthMiddleware(username, password, new RateLimiter({ maxAttempts: 100, windowMs: 60_000 }))
     const req = createMockRequest('Basic invalid')
     const res = createMockResponse()
     
