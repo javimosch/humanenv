@@ -28,6 +28,27 @@ export class WsRouter {
   async shutdown(): Promise<void> {
     clearInterval(this.lastUsedFlushInterval)
     await this.flushLastUsed()
+
+    // Close all active client connections
+    for (const ws of this.clientSessions.keys()) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close(1001, 'Server shutting down')
+      }
+    }
+    this.clientSessions.clear()
+
+    // Close all admin connections
+    for (const ws of this.adminClients) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close(1001, 'Server shutting down')
+      }
+    }
+    this.adminClients.clear()
+
+    // Close the WebSocketServer itself
+    await new Promise<void>((resolve) => {
+      this.wss.close(() => resolve())
+    })
   }
 
   private async flushLastUsed(): Promise<void> {

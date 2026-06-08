@@ -55,6 +55,12 @@ async function main() {
 
   app.use(express.json())
 
+  // Health endpoint MUST be registered before any auth middleware
+  // so Docker HEALTHCHECK can reach it without credentials
+  app.get('/health', (_req, res) => {
+    res.json({ ok: true })
+  })
+
   // Basic auth for admin UI
   if (BASIC_AUTH_ARG) {
     const username = process.env.BASIC_AUTH_USERNAME || 'admin'
@@ -111,8 +117,14 @@ async function main() {
   app.set('views', path.join(__dirname, 'views'))
 
   const shutdown = async (signal: string) => {
+    if (shuttingDown) return
+    shuttingDown = true
     console.log(`\nReceived ${signal}, shutting down gracefully...`)
-    await pk.saveTemporalPk()
+
+    try { await pk.saveTemporalPk() } catch (e) { console.error('Failed to save PK:', e) }
+    try { await wsRouter.shutdown() } catch (e) { console.error('Failed to shutdown WS:', e) }
+    try { await db.disconnect() } catch (e) { console.error('Failed to disconnect DB:', e) }
+
     server.close(() => {
       process.exit(0)
     })
@@ -121,6 +133,7 @@ async function main() {
       process.exit(1)
     }, 5000)
   }
+  let shuttingDown = false
 
   process.on('SIGTERM', () => shutdown('SIGTERM'))
   process.on('SIGINT', () => shutdown('SIGINT'))
