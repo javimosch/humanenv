@@ -4,7 +4,9 @@ services:
     container_name: humanenv-server
     restart: unless-stopped
     ports:
-      - "3056:3056"
+      # Bind to localhost only for security - not exposed to internet
+      # Access via reverse proxy (Traefik/Nginx) or SSH tunnel
+      - "127.0.0.1:3056:3056"
     environment:
       - NODE_ENV=production
       - PORT=3056
