@@ -124,7 +124,10 @@ async function main() {
   app.set('view engine', 'ejs')
   app.set('views', path.join(__dirname, 'views'))
 
+  let shuttingDown = false
   const shutdown = async (signal: string) => {
+    if (shuttingDown) return
+    shuttingDown = true
     console.log(`\nReceived ${signal}, shutting down gracefully...`)
     const forceExit = setTimeout(() => {
       console.error('Forced exit after timeout')

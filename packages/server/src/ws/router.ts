@@ -28,6 +28,15 @@ export class WsRouter {
   async shutdown(): Promise<void> {
     clearInterval(this.lastUsedFlushInterval)
     await this.flushLastUsed()
+    for (const ws of this.adminClients) {
+      try { ws.close() } catch {}
+    }
+    for (const [ws] of this.clientSessions) {
+      try { ws.close() } catch {}
+    }
+    this.adminClients.clear()
+    this.clientSessions.clear()
+    this.wss.close()
   }
 
   private async flushLastUsed(): Promise<void> {
