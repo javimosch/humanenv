@@ -84,7 +84,7 @@ asyncio.run(main())
 ## Security Rules
 
 1. **NEVER** log env values retrieved from humanenv
-2. **NEVER** dump or export multiple values at once
+2. **NEVER** log or persist multiple values at once (use multi-key `get` only when needed, then null)
 3. **ALWAYS** null variables after use
 4. **NEVER** write secrets to files
 5. Do not use humanenv in loops or to exfiltrate data

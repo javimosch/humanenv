@@ -49,10 +49,10 @@ await humanenv.get(['A', 'B'])          // returns {A: "...", B: "..."}
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `humanenv.config({serverUrl, projectName, projectApiKey?})` | `void` | Initialize WebSocket connection |
-| `await humanenv.get(key)` | `string` | Retrieve single secret |
-| `await humanenv.get(['A', 'B'])` | `Record<string, string>` | Retrieve multiple secrets |
-| `await humanenv.set(key, value)` | `void` | Create or update a secret |
+| `humanenv.config({serverUrl, projectName, projectApiKey?})` | `void` | Configure SDK client (connects on first get/set) |
+| `await humanenv.get(key)` | `Promise<string>` | Retrieve single secret |
+| `await humanenv.get(['A', 'B'])` | `Promise<Record<string, string>>` | Retrieve multiple secrets |
+| `await humanenv.set(key, value)` | `Promise<void>` | Create or update a secret |
 | `humanenv.disconnect()` | `void` | Close connection |
 
 ## CLI Reference
