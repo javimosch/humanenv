@@ -32,9 +32,11 @@ export class PkManager {
   private temporalPkEnabled = false
   private dbForTemporal: { listProjects(): Promise<Array<{ name: string }>> } | null = null
 
-  async bootstrap(storedHash: string | null, db: { getGlobalSetting(key: string): Promise<string | null>; listProjects(): Promise<Array<{ name: string }>> }): Promise<{ status: 'ready' | 'needs_input'; existing?: 'hash' | 'first' }> {
-    this.temporalPkEnabled = await this.isTemporalPkEnabled(db)
-    this.dbForTemporal = db
+  async bootstrap(storedHash: string | null, db?: { getGlobalSetting(key: string): Promise<string | null>; listProjects(): Promise<Array<{ name: string }>> }): Promise<{ status: 'ready' | 'needs_input'; existing?: 'hash' | 'first' }> {
+    if (db) {
+      this.temporalPkEnabled = await this.isTemporalPkEnabled(db)
+      this.dbForTemporal = db
+    }
 
     if (this.temporalPkEnabled) {
       const loadedFromFile = await this.loadTemporalPk(storedHash)
@@ -131,7 +133,7 @@ export class PkManager {
     if (!this.mnemonic) {
       this.mnemonic = generateMnemonic()
     }
-    return this.mnemonic
+    return this.mnemonic!
   }
 
   submitMnemonic(mnemonic: string, storedHash: string | null): { hash: string; verified: boolean; firstSetup: boolean } {

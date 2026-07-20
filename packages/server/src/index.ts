@@ -39,6 +39,15 @@ async function main() {
   console.log('Starting HumanEnv server...')
   console.log('Data directory:', dataDir)
 
+  // Production safety: require strong password
+  if (process.env.NODE_ENV === 'production' && BASIC_AUTH_ARG) {
+    const password = process.env.BASIC_AUTH_PASSWORD || 'admin'
+    if (!password || password === 'admin') {
+      console.error('FATAL: In production, BASIC_AUTH_PASSWORD must be set to a strong value (not empty or "admin").')
+      process.exit(1)
+    }
+  }
+
   // Database
   const mongoUri = process.env.MONGODB_URI
   const { provider: db, active: activeDb } = await createDatabase(dbPath, mongoUri)
@@ -54,6 +63,11 @@ async function main() {
   const server = http.createServer(app)
 
   app.use(express.json())
+
+  // Health check (used by Docker HEALTHCHECK) — must be before auth middleware
+  app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', pk_ready: pk.isReady() })
+  })
 
   // Basic auth for admin UI
   if (BASIC_AUTH_ARG) {
@@ -112,14 +126,21 @@ async function main() {
 
   const shutdown = async (signal: string) => {
     console.log(`\nReceived ${signal}, shutting down gracefully...`)
-    await pk.saveTemporalPk()
-    server.close(() => {
-      process.exit(0)
-    })
-    setTimeout(() => {
+    const forceExit = setTimeout(() => {
       console.error('Forced exit after timeout')
       process.exit(1)
     }, 5000)
+    forceExit.unref()
+    try {
+      await wsRouter.shutdown()
+      await pk.saveTemporalPk()
+      await db.disconnect()
+    } catch (e) {
+      console.error('Error during shutdown:', e)
+    }
+    server.close(() => {
+      process.exit(0)
+    })
   }
 
   process.on('SIGTERM', () => shutdown('SIGTERM'))
