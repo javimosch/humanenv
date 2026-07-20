@@ -51,7 +51,7 @@ await humanenv.get(['A', 'B'])          // returns {A: "...", B: "..."}
 |--------|---------|-------------|
 | `humanenv.config({serverUrl, projectName, projectApiKey?})` | `void` | Initialize WebSocket connection |
 | `await humanenv.get(key)` | `string` | Retrieve single secret |
-| `await humanenv.get([keys])` | `Record<string, string>` | Retrieve multiple secrets |
+| `await humanenv.get(['A', 'B'])` | `Record<string, string>` | Retrieve multiple secrets |
 | `await humanenv.set(key, value)` | `void` | Create or update a secret |
 | `humanenv.disconnect()` | `void` | Close connection |
 
