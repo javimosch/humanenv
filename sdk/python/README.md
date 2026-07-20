@@ -24,34 +24,42 @@ pip install -e sdk/python
 ### With singleton pattern (recommended)
 
 ```python
+import asyncio
 import humanenv
 
-humanenv.config(humanenv.ClientConfig(
-    server_url="http://localhost:3056",
-    project_name="my-app",
-    api_key="optional-api-key"
-))
+async def main():
+    humanenv.config(humanenv.ClientConfig(
+        server_url="http://localhost:3056",
+        project_name="my-app",
+        api_key="optional-api-key"
+    ))
 
-value = await humanenv.get("API_KEY")
-await humanenv.set("NEW_KEY", "value")
-humanenv.disconnect()
+    value = await humanenv.get("API_KEY")
+    await humanenv.set("NEW_KEY", "value")
+    humanenv.disconnect()
+
+asyncio.run(main())
 ```
 
 ### With explicit client
 
 ```python
+import asyncio
 from humanenv import HumanEnvClient, ClientConfig
 
-client = HumanEnvClient(ClientConfig(
-    server_url="http://localhost:3056",
-    project_name="my-app",
-    api_key="optional-api-key"
-))
+async def main():
+    client = HumanEnvClient(ClientConfig(
+        server_url="http://localhost:3056",
+        project_name="my-app",
+        api_key="optional-api-key"
+    ))
 
-await client.connect()
-value = await client.get("API_KEY")
-await client.set("NEW_KEY", "value")
-client.disconnect()
+    await client.connect()
+    value = await client.get("API_KEY")
+    await client.set("NEW_KEY", "value")
+    client.disconnect()
+
+asyncio.run(main())
 ```
 
 ### Get multiple keys
@@ -60,6 +68,8 @@ client.disconnect()
 values = await client.get(["API_KEY", "DATABASE_URL"])
 # Returns {"API_KEY": "...", "DATABASE_URL": "..."}
 ```
+
+Use this inside an `async def` function (see examples above); `await` cannot run at module top level.
 
 ## Security Rules
 
@@ -91,10 +101,21 @@ values = await client.get(["API_KEY", "DATABASE_URL"])
 ### Error Handling
 
 ```python
-from humanenv import HumanEnvError, ErrorCode
+import asyncio
+from humanenv import HumanEnvClient, ClientConfig, HumanEnvError, ErrorCode
 
-try:
-    value = await client.get("SECRET_KEY")
-except HumanEnvError as e:
-    print(f"Error {e.code.value}: {e}")
+async def main():
+    client = HumanEnvClient(ClientConfig(
+        server_url="http://localhost:3056",
+        project_name="my-app",
+    ))
+    await client.connect()
+    try:
+        value = await client.get("SECRET_KEY")
+    except HumanEnvError as e:
+        print(f"Error {e.code.value}: {e}")
+    finally:
+        client.disconnect()
+
+asyncio.run(main())
 ```
