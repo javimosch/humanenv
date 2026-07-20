@@ -8,7 +8,7 @@
 |------------|-----|
 | humanenv server running | `npx humanenv server --port 3056` |
 | Project created | Admin UI → http://localhost:3056 |
-| Secrets stored | Admin UI → select project → add env vars |
+| Secrets stored | Admin UI → select project → add secrets |
 
 ## Run
 
