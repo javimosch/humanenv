@@ -1,6 +1,6 @@
 # Python SDK for humanenv
 
-Python SDK for consuming environment variables from a humanenv server via WebSocket.
+Python SDK for retrieving secrets from a humanenv server via WebSocket.
 
 ## Installation
 
@@ -83,7 +83,7 @@ asyncio.run(main())
 
 ## Security Rules
 
-1. **NEVER** log env values retrieved from humanenv
+1. **NEVER** log secret values retrieved from humanenv
 2. **NEVER** log or persist multiple values at once (use multi-key `get` only when needed, then null)
 3. **ALWAYS** null variables after use
 4. **NEVER** write secrets to files
@@ -103,8 +103,8 @@ asyncio.run(main())
 ### HumanEnvClient
 
 - `await client.connect()` - Connect to server and authenticate
-- `await client.get(key)` / `await client.get([key1, key2])` - Retrieve env value(s)
-- `await client.set(key, value)` - Set an env value
+- `await client.get(key)` / `await client.get([key1, key2])` - Retrieve secret(s)
+- `await client.set(key, value)` - Set a secret
 - `await client.connect_and_wait_for_auth(timeout_ms)` - Connect and wait for auth
 - `client.disconnect()` - Disconnect from server
 

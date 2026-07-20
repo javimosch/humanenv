@@ -110,7 +110,7 @@ humanenv local envs -i
 ### Security
 
 - Admin commands (set, projects, apikeys, whitelist) require mnemonic authentication
-- Mnemonic is stored in `HUMANENV_LOCAL_MNEMONIC` env var (session-only, not persisted)
+- Mnemonic is read from `HUMANENV_LOCAL_MNEMONIC` (session-only — not written to disk by humanenv)
 - After 3 failed auth attempts, 1-minute lockout applies
 - Lock file at `~/.humanenv/.lock` can be removed by admin in emergencies
 
