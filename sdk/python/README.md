@@ -101,10 +101,21 @@ Use this inside an `async def` function (see examples above); `await` cannot run
 ### Error Handling
 
 ```python
-from humanenv import HumanEnvError, ErrorCode
+import asyncio
+from humanenv import HumanEnvClient, ClientConfig, HumanEnvError, ErrorCode
 
-try:
-    value = await client.get("SECRET_KEY")
-except HumanEnvError as e:
-    print(f"Error {e.code.value}: {e}")
+async def main():
+    client = HumanEnvClient(ClientConfig(
+        server_url="http://localhost:3056",
+        project_name="my-app",
+    ))
+    await client.connect()
+    try:
+        value = await client.get("SECRET_KEY")
+    except HumanEnvError as e:
+        print(f"Error {e.code.value}: {e}")
+    finally:
+        client.disconnect()
+
+asyncio.run(main())
 ```
