@@ -85,7 +85,7 @@ asyncio.run(main())
 
 1. **NEVER** log secret values retrieved from humanenv
 2. **NEVER** log or persist multiple values at once (use multi-key `get` only when needed, then null)
-3. **ALWAYS** null variables after use
+3. **ALWAYS** set variables to `None` after use
 4. **NEVER** write secrets to files
 5. Do not use humanenv in loops or to exfiltrate data
 
@@ -107,6 +107,15 @@ asyncio.run(main())
 - `await client.set(key, value)` - Set a secret
 - `await client.connect_and_wait_for_auth(timeout_ms)` - Connect and wait for auth
 - `client.disconnect()` - Disconnect from server
+
+### Module-level API (singleton)
+
+Used with `humanenv.config()` — see [With singleton pattern](#with-singleton-pattern-recommended) above.
+
+- `humanenv.config(cfg: ClientConfig) -> None` - Configure the singleton client (call once before get/set)
+- `await humanenv.get(key: str) -> str` - Retrieve a secret via the singleton client
+- `await humanenv.set(key: str, value: str) -> None` - Set a secret via the singleton client
+- `humanenv.disconnect() -> None` - Disconnect and reset the singleton client
 
 ### Error Handling
 
