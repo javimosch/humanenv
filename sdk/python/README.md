@@ -65,11 +65,21 @@ asyncio.run(main())
 ### Get multiple keys
 
 ```python
-values = await client.get(["API_KEY", "DATABASE_URL"])
-# Returns {"API_KEY": "...", "DATABASE_URL": "..."}
-```
+import asyncio
+from humanenv import HumanEnvClient, ClientConfig
 
-Use this inside an `async def` function (see examples above); `await` cannot run at module top level.
+async def main():
+    client = HumanEnvClient(ClientConfig(
+        server_url="http://localhost:3056",
+        project_name="my-app",
+    ))
+    await client.connect()
+    values = await client.get(["API_KEY", "DATABASE_URL"])
+    # Returns {"API_KEY": "...", "DATABASE_URL": "..."}
+    client.disconnect()
+
+asyncio.run(main())
+```
 
 ## Security Rules
 

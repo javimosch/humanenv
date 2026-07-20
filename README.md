@@ -31,11 +31,15 @@ npx humanenv server --port 3056
 # 3. Authenticate (agent or human)
 humanenv auth --project-name my-app --server-url http://localhost:3056
 
-# 4. Fetch secrets
-humanenv get API_KEY                    # CLI: returns raw value
-humanenv --json get API_KEY             # CLI: returns {"value": "..."}
-await humanenv.get('API_KEY')           # SDK: returns string
-await humanenv.get(['A', 'B'])          # SDK: returns {A: "...", B: "..."}
+# 4. Fetch secrets (CLI)
+humanenv get API_KEY                    # returns raw value
+humanenv --json get API_KEY             # returns {"value": "..."}
+```
+
+```javascript
+// 4. Fetch secrets (JavaScript SDK)
+await humanenv.get('API_KEY')           // returns string
+await humanenv.get(['A', 'B'])          // returns {A: "...", B: "..."}
 ```
 
 ## SDK Reference
