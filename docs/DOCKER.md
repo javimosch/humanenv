@@ -56,7 +56,7 @@ docker run --rm -v humanenv-data:/src:ro -v $(pwd):/out alpine \
   tar czf /out/humanenv-$(date +%Y%m%d).tar.gz -C /src .
 
 # MongoDB
-docker-compose exec mongo mongodump --out /data/backup
+docker-compose -f docker-compose.server.yml -f docker-compose.server.mongo.yml exec mongo mongodump --out /data/backup
 ```
 
 ## Production Checklist
