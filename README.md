@@ -4,7 +4,7 @@
 
 ```javascript
 import humanenv from 'humanenv'
-await humanenv.config({ serverUrl: 'http://localhost:3056', projectName: 'my-app' })
+humanenv.config({ serverUrl: 'http://localhost:3056', projectName: 'my-app' })
 
 let key = await humanenv.get('API_KEY')   // single key, encrypted in transit
 callService(key)
@@ -39,7 +39,7 @@ humanenv --json get API_KEY             # returns {"value": "..."}
 ```javascript
 // Fetch secrets (JavaScript SDK — configure once, then get)
 import humanenv from 'humanenv'
-await humanenv.config({ serverUrl: 'http://localhost:3056', projectName: 'my-app' })
+humanenv.config({ serverUrl: 'http://localhost:3056', projectName: 'my-app' })
 
 await humanenv.get('API_KEY')           // returns string
 await humanenv.get(['A', 'B'])          // returns {A: "...", B: "..."}

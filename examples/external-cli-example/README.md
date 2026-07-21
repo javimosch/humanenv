@@ -26,7 +26,7 @@ First run: a whitelist request appears in Admin UI → Whitelist tab. Approve it
 ```javascript
 import humanenv from 'humanenv'
 
-await humanenv.config({
+humanenv.config({
   serverUrl: 'http://localhost:3056',
   projectName: 'example-app',
 })
@@ -48,7 +48,7 @@ process.env.API_KEY = await humanenv.get('api_key')
 ## With API Key Auth
 
 ```javascript
-await humanenv.config({
+humanenv.config({
   serverUrl: 'http://localhost:3056',
   projectName: 'example-app',
   projectApiKey: 'sk-xxx',   // skips fingerprint approval
