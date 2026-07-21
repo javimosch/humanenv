@@ -55,6 +55,8 @@ await humanenv.get(['A', 'B'])          // returns {A: "...", B: "..."}
 | `await humanenv.set(key, value)` | `Promise<void>` | Create or update a secret |
 | `humanenv.disconnect()` | `void` | Close connection |
 
+See [sdk/python/README.md](sdk/python/README.md) for the Python SDK (`pip install humanenv`).
+
 ## CLI Reference
 
 | Command | Description |
@@ -91,7 +93,7 @@ humanenv local get API_KEY
 | `humanenv local get KEY` | Retrieve a secret |
 | `humanenv local set KEY VALUE` | Store a secret |
 | `humanenv local projects` | Manage projects |
-| `humanenv local envs` | Manage envs |
+| `humanenv local envs` | Manage secrets |
 | `humanenv local apikeys` | Manage API keys |
 | `humanenv local whitelist` | Manage whitelist |
 | `humanenv local export <file>` | Export database |
